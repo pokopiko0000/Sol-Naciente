@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Entry {
+  id            String    @id @default(cuid())
+  entryNumber   Int       @default(1)
+  name1         String
+  representative1 String
+  preference1_1 String?
+  preference1_2 String?
+  preference1_3 String?
+  name2         String?
+  representative2 String?
+  preference2_1 String?
+  preference2_2 String?
+  preference2_3 String?
+  email         String
+  lineUrl       String?
+  liveType      LiveType
+  timestamp     DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  assignments   Assignment[]
+}
+
+model Live {
+  id        String    @id @default(cuid())
+  date      DateTime
+  type      LiveType
+  capacity  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  assignments Assignment[]
+}
+
+model Assignment {
+  id        String    @id @default(cuid())
+  entryId   String
+  liveId    String
+  nameIndex Int
+  status    AssignmentStatus @default(ASSIGNED)
+  order     Int?      // 香盤表での順序（ランダムに決定）
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  entry     Entry     @relation(fields: [entryId], references: [id])
+  live      Live      @relation(fields: [liveId], references: [id])
+  
+  @@unique([entryId, liveId, nameIndex])
+}
+
+enum LiveType {
+  KUCHIBE
+  NIWARA
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  WAITING
+  CANCELLED
+}
