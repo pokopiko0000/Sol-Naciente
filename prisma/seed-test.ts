@@ -1,43 +1,57 @@
-import { PrismaClient, LiveType } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Seeding test data for July 2025...')
+  console.log('Seeding test data for 日の出寄席...')
   
   // 既存のデータをクリア
   await prisma.assignment.deleteMany()
   await prisma.live.deleteMany()
   await prisma.entry.deleteMany()
+  await prisma.settings.deleteMany()
   
-  // 2025年7月の口火ライブテストデータ
+  // 日の出寄席のライブテストデータ（月6回開催）
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const currentMonth = currentDate.getMonth()
+  
   const liveEvents = [
-    { date: new Date('2025-07-05T20:00:00'), day: '7月5日(土)' },
-    { date: new Date('2025-07-08T20:00:00'), day: '7月8日(火)' },
-    { date: new Date('2025-07-10T20:00:00'), day: '7月10日(木)' },
-    { date: new Date('2025-07-12T20:00:00'), day: '7月12日(土)' },
-    { date: new Date('2025-07-15T20:00:00'), day: '7月15日(火)' },
-    { date: new Date('2025-07-17T20:00:00'), day: '7月17日(木)' },
-    { date: new Date('2025-07-19T20:00:00'), day: '7月19日(土)' },
-    { date: new Date('2025-07-22T20:00:00'), day: '7月22日(火)' },
-    { date: new Date('2025-07-24T20:00:00'), day: '7月24日(木)' },
-    { date: new Date('2025-07-26T20:00:00'), day: '7月26日(土)' }
+    { date: new Date(currentYear, currentMonth, 5, 19, 0), day: '5日(土)' },
+    { date: new Date(currentYear, currentMonth, 9, 19, 30), day: '9日(水)' },
+    { date: new Date(currentYear, currentMonth, 12, 20, 0), day: '12日(土)' },
+    { date: new Date(currentYear, currentMonth, 16, 19, 0), day: '16日(水)' },
+    { date: new Date(currentYear, currentMonth, 19, 19, 30), day: '19日(土)' },
+    { date: new Date(currentYear, currentMonth, 23, 20, 0), day: '23日(水)' }
   ]
   
-  // ライブイベントを作成
+  // ライブイベントを作成（日の出寄席は24組定員）
   for (const event of liveEvents) {
     await prisma.live.create({
       data: {
         date: event.date,
-        type: LiveType.KUCHIBE,
-        capacity: 10
+        capacity: 24,
+        is_confirmed: false
       }
     })
-    console.log(`Created live event: ${event.day}`)
+    console.log(`Created 日の出寄席 live event: ${event.day}`)
   }
+
+  // デフォルト設定を作成
+  const nextMonth = new Date(currentYear, currentMonth + 1, 1)
+  await prisma.settings.create({
+    data: {
+      entry_start_time: new Date(currentYear, currentMonth, 1, 22, 0), // 1日22:00開始
+      entry_end_time: new Date(currentYear, currentMonth, 2, 22, 30), // 2日22:30終了
+      is_entry_active: false,
+      target_year: nextMonth.getFullYear(),
+      target_month: nextMonth.getMonth() + 1
+    }
+  })
+  console.log('Created default settings')
   
   console.log('Test seeding completed!')
-  console.log(`Created ${liveEvents.length} KUCHIBE live events for July 2025`)
+  console.log(`Created ${liveEvents.length} 日の出寄席 live events`)
 }
 
 main()
