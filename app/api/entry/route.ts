@@ -3,45 +3,91 @@ import { prisma } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
+type DateEntry = {
+  date: string
+  performance_type: '漫才（漫談）' | 'コント' | '未定'
+}
+
+type EntryRequest = {
+  indies_name: string
+  entry_name: string
+  entries: DateEntry[]
+  remarks: string
+  email: string
+  lineUrl: string
+}
+
 export async function POST(request: NextRequest) {
-  let data: any = null
+  let data: EntryRequest | null = null
   try {
     data = await request.json()
     
-    // 本番環境: エントリー時間制限
-    const now = new Date()
-    const date = now.getDate()
-    const hour = now.getHours()
-    const minute = now.getMinutes()
+    // 開発環境での時間制限無効化
+    const isTestMode = process.env.NODE_ENV === 'development' || process.env.DISABLE_TIME_RESTRICTION === 'true'
     
-    // 1日または10日の22:00-23:00のみ受付
-    if (!((date === 1 || date === 10) && hour === 22)) {
+    if (!isTestMode) {
+      // 設定ベースの時間制限チェック
+      const settings = await prisma.settings.findFirst({
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+
+      if (!settings || !settings.is_entry_active) {
+        return NextResponse.json(
+          { error: 'エントリー受付時間外です' },
+          { status: 400 }
+        )
+      }
+
+      const now = new Date()
+      const entryStart = new Date(settings.entry_start_time)
+      const entryEnd = new Date(settings.entry_end_time)
+
+      if (now < entryStart || now > entryEnd) {
+        return NextResponse.json(
+          { error: 'エントリー受付時間外です' },
+          { status: 400 }
+        )
+      }
+    }
+    
+    // バリデーション
+    if (!data.indies_name || !data.entry_name || !data.email) {
       return NextResponse.json(
-        { error: 'エントリー受付時間外です' },
+        { error: '必須項目が入力されていません' },
         { status: 400 }
       )
     }
     
-    const entry = await prisma.entry.create({
-      data: {
-        entryNumber: parseInt(data.entryNumber),
-        name1: data.name1,
-        representative1: data.representative1,
-        preference1_1: data.preference1_1 || null,
-        preference1_2: data.preference1_2 || null,
-        preference1_3: data.preference1_3 || null,
-        name2: data.name2 || null,
-        representative2: data.representative2 || null,
-        preference2_1: data.preference2_1 || null,
-        preference2_2: data.preference2_2 || null,
-        preference2_3: data.preference2_3 || null,
-        email: data.email,
-        lineUrl: data.lineUrl || null,
-        liveType: data.liveType,
-      },
-    })
+    if (!data.entries || data.entries.length === 0) {
+      return NextResponse.json(
+        { error: 'エントリー日を1つ以上選択してください' },
+        { status: 400 }
+      )
+    }
     
-    return NextResponse.json({ success: true, id: entry.id })
+    // 複数のエントリーレコードを作成（日付・演目の組み合わせごと）
+    const createdEntries = await Promise.all(
+      data.entries.map(async (entry) => {
+        return await prisma.entry.create({
+          data: {
+            indies_name: data.indies_name,
+            entry_name: data.entry_name,
+            performance_type: entry.performance_type,
+            target_date: new Date(entry.date),
+            remarks: data.remarks || null,
+            email: data.email,
+            lineUrl: data.lineUrl || null,
+          },
+        })
+      })
+    )
+    
+    return NextResponse.json({ 
+      success: true, 
+      entries: createdEntries.map(e => ({ id: e.id, date: e.target_date, performance_type: e.performance_type }))
+    })
   } catch (error) {
     console.error('Entry creation error:', error)
     console.error('Error details:', {

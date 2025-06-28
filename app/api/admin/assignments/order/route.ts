@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
     // 簡易認証チェック
     const authHeader = request.headers.get('authorization')
@@ -11,40 +11,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { liveId } = await request.json()
+    const { liveId, assignmentId, newOrder } = await request.json()
 
-    if (!liveId) {
+    if (!liveId || !assignmentId || newOrder === undefined) {
       return NextResponse.json(
-        { error: 'liveId is required' },
+        { error: 'liveId, assignmentId, newOrder are required' },
         { status: 400 }
       )
     }
 
-    console.log('🔒 香盤表確定処理を開始 for live:', liveId)
+    console.log(`🔄 Updating assignment order: ${assignmentId} to order ${newOrder}`)
 
-    // 指定されたライブの香盤表を確定
-    const updatedLive = await prisma.live.update({
+    // アサインメントの順序を更新
+    const updatedAssignment = await prisma.assignment.update({
       where: {
-        id: liveId
+        id: assignmentId,
+        liveId: liveId
       },
       data: {
-        is_confirmed: true
+        order: newOrder
       }
     })
 
-    console.log('✅ 香盤表が確定されました:', updatedLive.id)
+    console.log('✅ Assignment order updated successfully')
 
     return NextResponse.json({
       success: true,
-      message: '香盤表が確定されました',
-      live: updatedLive
+      assignment: updatedAssignment
     })
 
   } catch (error) {
-    console.error('Confirm error:', error)
+    console.error('Assignment order update error:', error)
     return NextResponse.json(
       { 
-        error: '香盤表の確定に失敗しました',
+        error: '順序の更新に失敗しました',
         details: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }

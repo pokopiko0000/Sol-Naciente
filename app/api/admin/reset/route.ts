@@ -11,36 +11,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { resetType, liveType } = await request.json()
+    const { resetType, year, month } = await request.json()
     
-    console.log(`🗑️ Starting reset: ${resetType} for ${liveType || 'all'}`)
+    console.log(`🗑️ Starting reset: ${resetType} for ${year}年${month}月`)
 
     if (resetType === 'entries') {
       // エントリーをリセット（関連するアサインメントも自動的に削除される）
       let deleteCount = 0
       
-      // まず関連するアサインメントを削除
-      if (liveType && liveType !== 'ALL') {
-        // 特定のライブタイプのエントリーに関連するアサインメントを削除
+      if (year && month) {
+        // 指定された年月のエントリーを削除
+        const startDate = new Date(year, month - 1, 1) // monthは0ベース
+        const endDate = new Date(year, month, 0, 23, 59, 59) // 月の最終日
+        
         const entriesToDelete = await prisma.entry.findMany({
-          where: { liveType },
+          where: {
+            target_date: {
+              gte: startDate,
+              lte: endDate
+            }
+          },
           select: { id: true }
         })
         
         if (entriesToDelete.length > 0) {
           const entryIds = entriesToDelete.map(e => e.id)
+          
+          // 関連するアサインメントを削除
           await prisma.assignment.deleteMany({
             where: {
               entryId: { in: entryIds }
             }
           })
+          
+          // エントリーを削除
+          const result = await prisma.entry.deleteMany({
+            where: {
+              target_date: {
+                gte: startDate,
+                lte: endDate
+              }
+            }
+          })
+          deleteCount = result.count
         }
-        
-        // エントリーを削除
-        const result = await prisma.entry.deleteMany({
-          where: { liveType }
-        })
-        deleteCount = result.count
       } else {
         // すべてのアサインメントを削除
         await prisma.assignment.deleteMany({})
@@ -62,20 +76,46 @@ export async function POST(request: NextRequest) {
       // 香盤表（アサインメント）をリセット
       let deleteCount = 0
       
-      if (liveType && liveType !== 'ALL') {
-        // 特定のライブタイプのアサインメントを削除
+      if (year && month) {
+        // 指定された年月のライブのアサインメントを削除
+        const startDate = new Date(year, month - 1, 1)
+        const endDate = new Date(year, month, 0, 23, 59, 59)
+        
         const result = await prisma.assignment.deleteMany({
           where: {
             live: {
-              type: liveType
+              date: {
+                gte: startDate,
+                lte: endDate
+              }
             }
           }
         })
         deleteCount = result.count
+        
+        // 該当月のライブの確定フラグもリセット
+        await prisma.live.updateMany({
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate
+            }
+          },
+          data: {
+            is_confirmed: false
+          }
+        })
       } else {
         // すべてのアサインメントを削除
         const result = await prisma.assignment.deleteMany({})
         deleteCount = result.count
+        
+        // すべてのライブの確定フラグもリセット
+        await prisma.live.updateMany({
+          data: {
+            is_confirmed: false
+          }
+        })
       }
       
       console.log(`✅ Deleted ${deleteCount} assignments`)

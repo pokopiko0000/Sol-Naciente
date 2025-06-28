@@ -5,16 +5,21 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    // 未来の確定済みライブのみを取得
     const lives = await prisma.live.findMany({
       where: {
         date: {
           gte: new Date()
-        }
+        },
+        is_confirmed: true // 確定済みのライブのみ
       },
       include: {
         assignments: {
           include: {
             entry: true
+          },
+          orderBy: {
+            order: 'asc' // 順序でソート
           }
         }
       },

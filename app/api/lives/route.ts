@@ -4,59 +4,58 @@ import { prisma } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const liveType = searchParams.get('type') || 'KUCHIBE'
-  const testMode = searchParams.get('test') === 'true' // テストモードパラメータ
-  
   try {
+    console.log('Lives API - Fetching lives for 日の出寄席')
     
-    console.log('Lives API - Requested type:', liveType, 'Test mode:', testMode)
+    // 設定から募集対象年月を取得
+    const settings = await prisma.settings.findFirst({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    let targetYear: number
+    let targetMonth: number
+
+    if (settings && settings.target_year && settings.target_month) {
+      // 設定で指定された年月を使用
+      targetYear = settings.target_year
+      targetMonth = settings.target_month
+    } else {
+      // フォールバック：翌月のライブデータを取得
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1 // 0-11 → 1-12
+      targetMonth = currentMonth === 12 ? 1 : currentMonth + 1
+      targetYear = currentMonth === 12 ? now.getFullYear() + 1 : now.getFullYear()
+    }
     
-    // エントリー時は翌月のライブデータを取得
-    // 注意：7月1日・10日のエントリーは8月公演なので、現在の仕様に合わせて調整
-    const now = new Date()
-    const currentMonth = now.getMonth() + 1 // 0-11 → 1-12
-    
-    // 開発環境では常に7月想定なので、8月のデータを取得
-    const targetMonth = 8 // 8月
-    const targetYear = 2025
-    
-    const nextMonth = new Date(targetYear, targetMonth - 1, 1) // 8月1日
-    const nextMonthEnd = new Date(targetYear, targetMonth, 0) // 8月31日
+    const targetMonthStart = new Date(targetYear, targetMonth - 1, 1) // 対象月1日
+    const targetMonthEnd = new Date(targetYear, targetMonth, 0) // 対象月末日
     
     console.log('Lives API - Date range:', {
-      currentDate: now.toISOString(),
-      searchFrom: nextMonth.toISOString(),
-      searchTo: nextMonthEnd.toISOString(),
-      targetMonth
+      searchFrom: targetMonthStart.toISOString(),
+      searchTo: targetMonthEnd.toISOString(),
+      targetMonth,
+      targetYear,
+      fromSettings: !!(settings && settings.target_year && settings.target_month)
     })
     
-    // まず全データを取得してデバッグ
-    const allLives = await prisma.live.findMany({
+    // 日の出寄席のライブデータを取得（ライブタイプは削除済み）
+    const lives = await prisma.live.findMany({
       where: {
-        type: liveType as 'KUCHIBE' | 'NIWARA'
+        date: {
+          gte: targetMonthStart,
+          lte: targetMonthEnd
+        }
       },
       orderBy: {
         date: 'asc'
       }
     })
     
-    console.log(`Lives API - All lives in DB for ${liveType}:`)
-    allLives.forEach(live => {
-      console.log(`  - ${live.date.toISOString()} (${live.type})`)
-    })
-    
-    // 8月のデータのみフィルタリング（年は問わない）
-    const lives = testMode ? allLives : allLives.filter(live => {
-      const liveMonth = live.date.getMonth() + 1
-      return liveMonth === 8
-    })
-    
-    console.log(`Lives API - Filtered ${lives.length} August lives`)
-    
-    console.log(`Lives API - Found ${lives.length} lives for type ${liveType}`)
+    console.log(`Lives API - Found ${lives.length} lives for 日の出寄席`)
     lives.forEach(live => {
-      console.log(`  - ${live.date.toISOString()} (${live.type})`)
+      console.log(`  - ${live.date.toISOString()}`)
     })
     
     const dates = lives.map(live => {
@@ -64,15 +63,15 @@ export async function GET(request: NextRequest) {
         month: 'long',
         day: 'numeric',
         weekday: 'short'
-      }).replace('2025年', '')
+      }).replace(`${targetYear}年`, '')
       
-      // 時間範囲を追加
+      // 開始・終了時間を追加（日の出寄席は1時間半固定）
       const startTime = live.date.toLocaleTimeString('ja-JP', {
         hour: '2-digit',
         minute: '2-digit'
       })
       
-      const duration = live.type === 'KUCHIBE' ? 60 : 90
+      const duration = 90 // 1時間半
       const endDate = new Date(live.date.getTime() + duration * 60 * 1000)
       const endTime = endDate.toLocaleTimeString('ja-JP', {
         hour: '2-digit',
@@ -82,21 +81,20 @@ export async function GET(request: NextRequest) {
       return `${dateStr} ${startTime}〜${endTime}`
     })
     
-    // フォールバック用のテストデータ（翌月の日程）
+    // フォールバック用のテストデータ（月6回開催）
     console.log('Lives API - Formatted dates:', dates)
-    if (dates.length === 0 && lives.length === 0) {
-      console.log('Lives API - No data found, using fallback for type:', liveType)
-      const fallbackDates = liveType === 'KUCHIBE' ? [
-        '8月5日(月) 19:00〜20:00',
-        '8月8日(木) 19:30〜20:30',
-        '8月12日(月) 20:00〜21:00',
-        '8月15日(木) 19:00〜20:00',
-        '8月19日(月) 19:30〜20:30'
-      ] : [
-        '8月3日(土) 19:00〜20:30',
-        '8月10日(土) 19:30〜21:00',
-        '8月17日(土) 19:00〜20:30',
-        '8月24日(土) 19:30〜21:00'
+    if (dates.length === 0) {
+      console.log('Lives API - No data found, using fallback for 日の出寄席')
+      
+      // 月6回のサンプル日程を生成（1時間半固定）
+      const monthName = new Date(targetYear, targetMonth - 1, 1).toLocaleDateString('ja-JP', { month: 'long' })
+      const fallbackDates = [
+        `${monthName}5日(火) 19:00〜20:30`,
+        `${monthName}9日(土) 19:30〜21:00`,
+        `${monthName}12日(火) 20:00〜21:30`,
+        `${monthName}16日(土) 19:00〜20:30`,
+        `${monthName}19日(火) 19:30〜21:00`,
+        `${monthName}23日(土) 20:00〜21:30`
       ]
       return NextResponse.json({ dates: fallbackDates })
     }
@@ -109,18 +107,20 @@ export async function GET(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined
     })
     
-    // エラー時もフォールバックデータを返す（翌月の日程）
-    const fallbackDates = liveType === 'KUCHIBE' ? [
-      '8月5日(月) 19:00〜20:00',
-      '8月8日(木) 19:30〜20:30',
-      '8月12日(月) 20:00〜21:00',
-      '8月15日(木) 19:00〜20:00',
-      '8月19日(月) 19:30〜20:30'
-    ] : [
-      '8月3日(土) 19:00〜20:30',
-      '8月10日(土) 19:30〜21:00',
-      '8月17日(土) 19:00〜20:30',
-      '8月24日(土) 19:30〜21:00'
+    // エラー時もフォールバックデータを返す（月6回開催）
+    const now = new Date()
+    const currentMonth = now.getMonth() + 1
+    const targetMonth = currentMonth === 12 ? 1 : currentMonth + 1
+    const targetYear = currentMonth === 12 ? now.getFullYear() + 1 : now.getFullYear()
+    const monthName = new Date(targetYear, targetMonth - 1, 1).toLocaleDateString('ja-JP', { month: 'long' })
+    
+    const fallbackDates = [
+      `${monthName}5日(火) 19:00〜20:30`,
+      `${monthName}9日(土) 19:30〜21:00`,
+      `${monthName}12日(火) 20:00〜21:30`,
+      `${monthName}16日(土) 19:00〜20:30`,
+      `${monthName}19日(火) 19:30〜21:00`,
+      `${monthName}23日(土) 20:00〜21:30`
     ]
     return NextResponse.json({ dates: fallbackDates })
   }

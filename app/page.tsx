@@ -3,49 +3,39 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
+type DateEntry = {
+  date: string
+  performance_type: '漫才（漫談）' | 'コント' | '未定'
+}
+
 type EntryForm = {
-  entryNumber: '1' | '2'
-  name1: string
-  representative1: string
-  preference1_1: string
-  preference1_2: string
-  preference1_3: string
-  name2: string
-  representative2: string
-  preference2_1: string
-  preference2_2: string
-  preference2_3: string
+  indies_name: string
+  entry_name: string
+  entries: DateEntry[]
+  remarks: string
   email: string
   lineUrl: string
-  liveType: 'KUCHIBE' | 'NIWARA'
 }
 
 export default function EntryPage() {
   const router = useRouter()
   const [formData, setFormData] = useState<EntryForm>({
-    entryNumber: '1',
-    name1: '',
-    representative1: '',
-    preference1_1: '',
-    preference1_2: '',
-    preference1_3: '',
-    name2: '',
-    representative2: '',
-    preference2_1: '',
-    preference2_2: '',
-    preference2_3: '',
+    indies_name: '',
+    entry_name: '',
+    entries: [],
+    remarks: '',
     email: '',
-    lineUrl: '',
-    liveType: 'KUCHIBE'
+    lineUrl: ''
   })
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEntryOpen, setIsEntryOpen] = useState(false)
-  const [dates, setDates] = useState<string[]>([])
+  const [availableDates, setAvailableDates] = useState<string[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [timeUntilOpen, setTimeUntilOpen] = useState('')
+  const [timeUntilClose, setTimeUntilClose] = useState('')
   const [mounted, setMounted] = useState(false)
-  const [entryPhase, setEntryPhase] = useState<'waiting' | 'form_only' | 'accepting' | 'closed'>('waiting')
+  const [entryPhase, setEntryPhase] = useState<'waiting' | 'accepting' | 'closed'>('waiting')
+  const [entrySettings, setEntrySettings] = useState<any>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -55,147 +45,92 @@ export default function EntryPage() {
       const now = new Date()
       setCurrentTime(now)
       
-      const date = now.getDate()
-      const hour = now.getHours()
-      const minute = now.getMinutes()
-      
-      // エントリー日の判定（1日と10日）
-      // 開発環境では常にエントリー日として扱う
+      // 設定ベースの時間制限チェック
       const isTestMode = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_TEST_MODE === 'true'
-      const isEntryDay = isTestMode ? true : (date === 1 || date === 10)
       
-      // エントリー時間の判定（22:00-23:00）
-      // 開発環境では常に受付中として扱う
-      const isEntryTime = isTestMode ? true : (hour === 22 && minute < 60)
-      
-      if (isEntryDay) {
+      if (isTestMode) {
         setShowForm(true)
+        setEntryPhase('accepting')
+        setIsEntryOpen(true)
+        setTimeUntilClose('開発環境：受付中')
+      } else if (entrySettings && entrySettings.is_entry_active) {
+        const entryStart = new Date(entrySettings.entry_start_time)
+        const entryEnd = new Date(entrySettings.entry_end_time)
         
-        if (isEntryTime) {
-          // 22:00-23:00: エントリー受付中（開発環境では常に受付中）
+        if (now >= entryStart && now <= entryEnd) {
+          // エントリー受付中
+          setShowForm(true)
           setEntryPhase('accepting')
           setIsEntryOpen(true)
-          if (isTestMode) {
-            setTimeUntilOpen('開発環境：受付中')
+          
+          const timeLeft = entryEnd.getTime() - now.getTime()
+          const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60))
+          const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+          
+          if (hoursLeft > 0) {
+            setTimeUntilClose(`残り${hoursLeft}時間${minutesLeft}分`)
           } else {
-            const remainingMinutes = 59 - minute
-            const remainingSeconds = 60 - now.getSeconds()
-            setTimeUntilOpen(`残り${remainingMinutes}分${remainingSeconds}秒`)
+            setTimeUntilClose(`残り${minutesLeft}分`)
           }
-        } else if (hour < 22) {
-          // エントリー日の22:00前: フォーム入力可能、送信不可
-          setEntryPhase('form_only')
+        } else if (now < entryStart) {
+          // エントリー開始前
+          setShowForm(false)
+          setEntryPhase('waiting')
           setIsEntryOpen(false)
-          const hoursUntil = 21 - hour
-          const minutesUntil = 60 - minute
-          setTimeUntilOpen(`${hoursUntil}時間${minutesUntil}分後に受付開始`)
+          
+          const timeUntil = entryStart.getTime() - now.getTime()
+          const daysUntil = Math.floor(timeUntil / (1000 * 60 * 60 * 24))
+          const hoursUntil = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+          const minutesUntil = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60))
+          
+          if (daysUntil > 0) {
+            setTimeUntilClose(`エントリー開始まで${daysUntil}日${hoursUntil}時間`)
+          } else if (hoursUntil > 0) {
+            setTimeUntilClose(`エントリー開始まで${hoursUntil}時間${minutesUntil}分`)
+          } else {
+            setTimeUntilClose(`エントリー開始まで${minutesUntil}分`)
+          }
         } else {
-          // エントリー日の23:00以降: 締切
+          // エントリー終了後
+          setShowForm(false)
           setEntryPhase('closed')
           setIsEntryOpen(false)
-          setShowForm(false)
-          
-          // 次回エントリー日の計算
-          const currentLiveType = formData.liveType
-          let nextDate: number
-          let nextMonth = now.getMonth()
-          let nextYear = now.getFullYear()
-          
-          if (currentLiveType === 'KUCHIBE') {
-            // 口火: 毎月1日
-            nextDate = 1
-            // 今日が1日以降なら来月の1日
-            if (date >= 1) {
-              nextMonth = nextMonth + 1
-              if (nextMonth > 11) {
-                nextMonth = 0
-                nextYear = nextYear + 1
-              }
-            }
-          } else {
-            // 二足のわらじ: 毎月10日
-            nextDate = 10
-            // 今日が10日以降なら来月の10日
-            if (date >= 10) {
-              nextMonth = nextMonth + 1
-              if (nextMonth > 11) {
-                nextMonth = 0
-                nextYear = nextYear + 1
-              }
-            }
-          }
-          
-          const nextEntryDate = new Date(nextYear, nextMonth, nextDate)
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-          const daysUntil = Math.ceil((nextEntryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-          setTimeUntilOpen(`次回エントリーまで${daysUntil}日`)
+          setTimeUntilClose('エントリー受付終了')
         }
       } else {
-        // エントリー日でない場合
-        setEntryPhase('waiting')
+        // 設定されていないか無効
         setShowForm(false)
+        setEntryPhase('waiting')
         setIsEntryOpen(false)
-        
-        // 次回エントリー日の計算
-        const currentLiveType = formData.liveType
-        let nextDate: number
-        let nextMonth = now.getMonth()
-        let nextYear = now.getFullYear()
-        
-        if (currentLiveType === 'KUCHIBE') {
-          // 口火: 毎月1日
-          nextDate = 1
-          if (date >= 1) {
-            nextMonth = nextMonth + 1
-            if (nextMonth > 11) {
-              nextMonth = 0
-              nextYear = nextYear + 1
-            }
-          }
-        } else {
-          // 二足のわらじ: 毎月10日
-          nextDate = 10
-          if (date >= 10) {
-            nextMonth = nextMonth + 1
-            if (nextMonth > 11) {
-              nextMonth = 0
-              nextYear = nextYear + 1
-            }
-          }
-        }
-        
-        const nextEntryDate = new Date(nextYear, nextMonth, nextDate)
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        const daysUntil = Math.ceil((nextEntryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-        setTimeUntilOpen(`次回エントリーまで${daysUntil}日`)
+        setTimeUntilClose('エントリー受付時間外')
       }
     }, 1000)
 
     fetchLiveDates()
+    fetchEntrySettings()
     
     return () => clearInterval(timer)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
-  const fetchLiveDates = async (liveType?: 'KUCHIBE' | 'NIWARA') => {
+  const fetchLiveDates = async () => {
     try {
-      const typeToFetch = liveType || formData.liveType
-      const response = await fetch(`/api/lives?type=${typeToFetch}`)
+      const response = await fetch('/api/lives')
       const data = await response.json()
-      setDates(data.dates || [])
+      setAvailableDates(data.dates || [])
     } catch (error) {
       console.error('Failed to fetch live dates:', error)
-      setDates([])
+      setAvailableDates([])
     }
   }
 
-  const canSubmit = () => {
-    if (!currentTime) return false
-    const hour = currentTime.getHours()
-    const minute = currentTime.getMinutes()
-    const date = currentTime.getDate()
-    
-    // エントリー日の22:00-23:00のみ送信可能
-    return (date === 1 || date === 10) && hour === 22 && minute < 60
+  const fetchEntrySettings = async () => {
+    try {
+      const response = await fetch('/api/entry-status')
+      const data = await response.json()
+      setEntrySettings(data.settings)
+    } catch (error) {
+      console.error('Failed to fetch entry settings:', error)
+    }
   }
 
   // まだマウントされていない場合はローディング表示
@@ -213,38 +148,25 @@ export default function EntryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    console.log('Form submitted, currentTime:', currentTime)
-    console.log('canSubmit():', canSubmit())
-    
-    if (!canSubmit()) {
+    if (!isEntryOpen) {
       alert('エントリー受付時間外です')
       return
     }
 
     // 必須項目チェック
-    if (!formData.name1 || !formData.representative1 || !formData.email || !formData.liveType) {
+    if (!formData.indies_name || !formData.entry_name || !formData.email) {
       alert('必須項目が入力されていません')
       return
     }
     
-    // 第1希望は必須
-    if (!formData.preference1_1) {
-      alert('第1希望は必須です')
-      return
-    }
-    
-    // 2つエントリーの場合、名義2の第1希望も必須
-    if (formData.entryNumber === '2' && (!formData.name2 || !formData.representative2 || !formData.preference2_1)) {
-      alert('名義2の必須項目（名義名・代表者名・第1希望）が入力されていません')
+    if (formData.entries.length === 0) {
+      alert('エントリー日を1つ以上選択してください')
       return
     }
 
-    console.log('Time check passed, submitting...')
     setIsSubmitting(true)
 
     try {
-      console.log('Submitting form data:', formData)
-      
       const response = await fetch('/api/entry', {
         method: 'POST',
         headers: {
@@ -253,23 +175,11 @@ export default function EntryPage() {
         body: JSON.stringify(formData),
       })
 
-      const responseData = await response.text()
-      console.log('Response status:', response.status)
-      console.log('Response data:', responseData)
-
       if (response.ok) {
         router.push('/complete')
       } else {
-        let errorMessage = 'エントリーの送信に失敗しました'
-        try {
-          const errorData = JSON.parse(responseData)
-          if (errorData.error) {
-            errorMessage = errorData.error
-          }
-        } catch (parseError) {
-          errorMessage += `\nステータス: ${response.status}\nレスポンス: ${responseData}`
-        }
-        alert(errorMessage)
+        const errorData = await response.json()
+        alert(errorData.error || 'エントリーの送信に失敗しました')
       }
     } catch (error) {
       console.error('Submit error:', error)
@@ -279,54 +189,59 @@ export default function EntryPage() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleDateToggle = (date: string) => {
+    setFormData(prev => {
+      const existingEntry = prev.entries.find(e => e.date === date)
+      
+      if (existingEntry) {
+        // 既存のエントリーを削除
+        return {
+          ...prev,
+          entries: prev.entries.filter(e => e.date !== date)
+        }
+      } else {
+        // 新しいエントリーを追加（デフォルトは漫才）
+        return {
+          ...prev,
+          entries: [...prev.entries, { date, performance_type: '漫才（漫談）' }]
+        }
+      }
+    })
+  }
+
+  const handlePerformanceTypeChange = (date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => {
+    setFormData(prev => ({
+      ...prev,
+      entries: prev.entries.map(entry => 
+        entry.date === date 
+          ? { ...entry, performance_type: performanceType }
+          : entry
+      )
+    }))
   }
 
   // エントリー締切後の表示
   if (entryPhase === 'closed') {
     return (
       <div className="min-h-screen gradient-bg relative overflow-hidden flex items-center justify-center">
-        {/* Background decorations */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float"></div>
         <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float" style={{ animationDelay: '2s' }}></div>
         
         <div className="text-center px-4">
           <div className="glass-card max-w-2xl mx-auto">
             <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
-              {formData.liveType === 'KUCHIBE' ? '口火' : '二足のわらじ'}
+              日の出寄席
             </h1>
             
             <div className="mb-8">
               <p className="text-2xl font-semibold text-gray-900 mb-4">今回のエントリーは締め切りました</p>
               
-              {timeUntilOpen && (
-                <div className="mb-6">
-                  <p className="text-sm text-gray-600 mb-2">次回エントリーまで</p>
-                  <p className="text-3xl font-bold text-gray-900 font-mono">{timeUntilOpen}</p>
-                </div>
-              )}
-              
-              <div className="bg-white/50 rounded-xl p-6 text-left mb-6">
-                <h2 className="font-bold text-lg mb-3 text-gray-800">次回エントリー受付時間</h2>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-full bg-gray-600"></span>
-                    <div>
-                      <p className="font-semibold text-gray-700">{formData.liveType === 'KUCHIBE' ? '口火' : '二足のわらじ'}</p>
-                      <p className="text-sm text-gray-600">毎月{formData.liveType === 'KUCHIBE' ? '1' : '10'}日 22:00-23:00</p>
-                      <p className="text-xs text-gray-500 mt-1">※エントリーは翌月公演分（7月は8月公演）</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    香盤表は振り分け完了後に公開されます
-                  </p>
-                </div>
-              </div>
+              <p className="text-lg text-gray-600 mb-6">{timeUntilClose}</p>
               
               <a
                 href="/schedule"
@@ -337,7 +252,7 @@ export default function EntryPage() {
             </div>
             
             <p className="text-2xl font-bold text-gray-800 font-mono">
-              {currentTime.toLocaleDateString('ja-JP')} {currentTime.toLocaleTimeString('ja-JP')}
+              {currentTime?.toLocaleDateString('ja-JP')} {currentTime?.toLocaleTimeString('ja-JP')}
             </p>
           </div>
         </div>
@@ -349,57 +264,19 @@ export default function EntryPage() {
   if (entryPhase === 'waiting') {
     return (
       <div className="min-h-screen gradient-bg relative overflow-hidden flex items-center justify-center">
-        {/* Background decorations */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float"></div>
         <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float" style={{ animationDelay: '2s' }}></div>
         
         <div className="text-center px-4">
           <div className="glass-card max-w-2xl mx-auto">
-            {/* Live type selector */}
-            <div className="mb-6">
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={() => {
-                    setFormData({ ...formData, liveType: 'KUCHIBE' })
-                    fetchLiveDates('KUCHIBE')
-                  }}
-                  className={`px-6 py-3 rounded-md font-medium transition-all duration-300 ${
-                    formData.liveType === 'KUCHIBE'
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  口火
-                </button>
-                <button
-                  onClick={() => {
-                    setFormData({ ...formData, liveType: 'NIWARA' })
-                    fetchLiveDates('NIWARA')
-                  }}
-                  className={`px-6 py-3 rounded-md font-medium transition-all duration-300 ${
-                    formData.liveType === 'NIWARA'
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  二足のわらじ
-                </button>
-              </div>
-            </div>
-
             <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
-              {formData.liveType === 'KUCHIBE' ? '口火' : '二足のわらじ'}
+              日の出寄席
             </h1>
             
             <div className="mb-8">
               <p className="text-2xl font-semibold text-gray-800 mb-4">現在エントリー受付時間外です</p>
               
-              {timeUntilOpen && (
-                <div className="mb-6">
-                  <p className="text-sm text-gray-600 mb-2">次回エントリーまで</p>
-                  <p className="text-3xl font-bold text-gray-900 font-mono">{timeUntilOpen}</p>
-                </div>
-              )}
+              <p className="text-lg text-gray-600 mb-6">{timeUntilClose}</p>
               
               <div className="bg-white/50 rounded-xl p-6 text-left mb-6">
                 <h2 className="font-bold text-lg mb-3 text-gray-800">エントリー受付時間</h2>
@@ -407,16 +284,15 @@ export default function EntryPage() {
                   <div className="flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full bg-gray-600"></span>
                     <div>
-                      <p className="font-semibold text-gray-700">{formData.liveType === 'KUCHIBE' ? '口火' : '二足のわらじ'}</p>
-                      <p className="text-sm text-gray-600">毎月{formData.liveType === 'KUCHIBE' ? '1' : '10'}日 22:00-23:00</p>
-                      <p className="text-xs text-gray-500 mt-1">※エントリーは翌月公演分（7月は8月公演）</p>
+                      <p className="font-semibold text-gray-700">日の出寄席</p>
+                      <p className="text-sm text-gray-600">毎月1日 24時間受付</p>
                     </div>
                   </div>
                 </div>
                 
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="text-sm text-gray-600">
-                    エントリー当日は22:00からエントリー受付開始
+                    香盤表は2日後に公開されます
                   </p>
                 </div>
               </div>
@@ -430,7 +306,7 @@ export default function EntryPage() {
             </div>
             
             <p className="text-2xl font-bold text-gray-800 font-mono">
-              {currentTime.toLocaleDateString('ja-JP')} {currentTime.toLocaleTimeString('ja-JP')}
+              {currentTime?.toLocaleDateString('ja-JP')} {currentTime?.toLocaleTimeString('ja-JP')}
             </p>
           </div>
         </div>
@@ -440,334 +316,152 @@ export default function EntryPage() {
 
   return (
     <div className="min-h-screen gradient-bg relative overflow-hidden">
-      {/* Background decorations */}
       <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float"></div>
       <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float" style={{ animationDelay: '2s' }}></div>
-      <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gray-200 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float" style={{ animationDelay: '4s' }}></div>
 
-      <div className={`max-w-2xl mx-auto px-4 py-8 transition-all duration-1000 ${showForm ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+      <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
-            {formData.liveType === 'KUCHIBE' ? '口火' : '二足のわらじ'}
+            日の出寄席
           </h1>
           <p className="text-xl text-gray-600">エントリーフォーム</p>
-          <p className="text-sm text-gray-500 mt-2">
-            {(() => {
-              const date = currentTime.getDate()
-              const month = currentTime.getMonth() + 1
-              if (month === 7 && (date === 1 || date === 10)) {
-                return '※8月公演のエントリー受付'
-              }
-              const nextMonth = month === 12 ? 1 : month + 1
-              return `※${nextMonth}月公演のエントリー受付`
-            })()}
-          </p>
-        </div>
-        
-
-        {/* Live type selector */}
-        <div className="glass-card mb-6">
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={() => {
-                setFormData({ ...formData, liveType: 'KUCHIBE' })
-                fetchLiveDates('KUCHIBE')
-              }}
-              className={`px-6 py-3 rounded-md font-semibold transition-all duration-300 ${
-                formData.liveType === 'KUCHIBE'
-                  ? 'bg-gray-900 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              口火
-            </button>
-            <button
-              onClick={() => {
-                setFormData({ ...formData, liveType: 'NIWARA' })
-                fetchLiveDates('NIWARA')
-              }}
-              className={`px-6 py-3 rounded-md font-semibold transition-all duration-300 ${
-                formData.liveType === 'NIWARA'
-                  ? 'bg-gray-900 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              二足のわらじ
-            </button>
-          </div>
         </div>
 
         {/* Clock and Status */}
         <div className="glass-card mb-8 text-center">
           <p className="text-3xl font-bold text-gray-800 mb-2 font-mono">
-            {currentTime.toLocaleTimeString('ja-JP')}
+            {currentTime?.toLocaleTimeString('ja-JP') || '--:--:--'}
           </p>
-          {entryPhase === 'form_only' && (
-            <div className="space-y-2">
-              <p className="text-lg font-semibold text-gray-700">エントリー受付前</p>
-              <p className="text-sm text-gray-600">{timeUntilOpen}</p>
-              <p className="text-xs text-gray-500">フォーム入力は可能、送信は22:00から</p>
-            </div>
-          )}
-          {entryPhase === 'accepting' && (
-            <div className="space-y-2">
-              <p className="text-lg font-semibold text-gray-900">エントリー受付中</p>
-              <p className="text-sm text-gray-600">{timeUntilOpen}</p>
-            </div>
-          )}
-        </div>
-
-        {/* 募集要項 */}
-        <div className="glass-card mb-6">
-          <h2 className="text-xl font-bold mb-4 text-gray-800">
-            {formData.liveType === 'KUCHIBE' ? '【口火募集要項】' : '【二足のわらじ募集要項】'}
-          </h2>
-          
-          {formData.liveType === 'KUCHIBE' ? (
-            <div className="text-sm text-gray-700 space-y-3">
-              <div className="bg-gray-100 p-3 rounded-md border-l-4 border-gray-900">
-                <p className="font-semibold text-gray-900 mb-1">重要事項</p>
-                <p>※同じ人は月2回までしか出演できません。</p>
-                <p className="text-xs mt-1">(例:ボニーボニーで1回出演・花﨑ピンで1回出演した場合、花﨑さんはもうその月は出演不可。とくのしんさんはあと1回ピンでも別ユニットでも出演可)</p>
-                <p className="text-xs mt-1">※もし月3回以上出演していることが発覚した場合は、その人は次回以降エントリーをお断りする可能性があります</p>
-              </div>
-              
-              <div className="space-y-2">
-                <p><span className="font-semibold">①</span> 出演される際の名義、希望の日程を1通のDMにまとめて明記の上、@gakuya_jinnoまでDMをお送りください。複数日エントリーする場合や、複数名義エントリーされる場合も1通にまとめてください。送り方を守らなかった方はエントリーから除外します。</p>
-                
-                <p><span className="font-semibold">②</span> 運営の募集開始ポストを待たずとも、開始時間になった時点でエントリーしていただくことが可能です。</p>
-                
-                <p><span className="font-semibold">③</span> 募集中にエントリーを元に振り分け、全日程が埋まった時点で締め切らせていただきます。最低でも1日は出演いただけるように振り分けますが、応募多数のためお断りさせていただく場合がございます。</p>
-                
-                <p><span className="font-semibold">④</span> @gakuya_jinnoから決定した出演日をご連絡させていただきます。こちらからの返信がない場合、不具合の可能性がございますのでリプライかLINEにてご連絡お願いいたします。</p>
-                
-                <p><span className="font-semibold">⑤</span> 複数日ご出演していただくことは可能ですが、1位を取ったからという理由でそれ以降の出演をキャンセルするのはNGです。その場合は代わりの出演者をご自身で探していただき、見つかった場合のみキャンセル可能と致します。</p>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-gray-700 space-y-3">
-              <div className="space-y-2">
-                <p><span className="font-semibold">①</span> 出演される際の名義、希望の日程を1通のDMにまとめて明記の上、@gakuya_jinnoまでDMをお送りください。複数日エントリーする場合や、複数名義エントリーされる場合も1通にまとめてください。送り方を守らなかった方はエントリーから除外します。</p>
-                
-                <p><span className="font-semibold">②</span> 運営の募集開始ポストを待たずとも、開始時間になった時点でエントリーしていただくことが可能です。</p>
-                
-                <p><span className="font-semibold">③</span> 募集中にエントリーを元に振り分け、全日程が埋まった時点で締め切らせていただきます。最低でも1日は出演いただけるように振り分けますが、応募多数のためお断りさせていただく場合がございます。</p>
-                
-                <p><span className="font-semibold">④</span> @gakuya_jinnoから決定した出演日をご連絡させていただきます。こちらからの返信がない場合、不具合の可能性がございますのでリプライかLINEにてご連絡お願いいたします。</p>
-                
-                <p><span className="font-semibold">⑤</span> 複数日ご出場していただくことは可能ですが、1位を取ったからという理由でそれ以降の出演キャンセルするのはNGです。その場合は代わりの出演者をご自身で探していただき、見つかった場合のみキャンセル可能と致します。</p>
-                
-                <p><span className="font-semibold">⑥</span> 過去に1位を獲得した組であっても再度エントリーは可能です。</p>
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <p className="text-lg font-semibold text-gray-900">エントリー受付中</p>
+            <p className="text-sm text-gray-600">{timeUntilClose}</p>
+          </div>
         </div>
 
         {/* Main form */}
         <form onSubmit={handleSubmit} className="card form-section">
           
-          {/* Entry number selection */}
-          <div className="mb-8">
-            <label className="block text-sm font-bold text-gray-700 mb-4">エントリー数</label>
-            <div className="grid grid-cols-2 gap-4">
-              <label className="label-modern">
-                <input
-                  type="radio"
-                  name="entryNumber"
-                  value="1"
-                  checked={formData.entryNumber === '1'}
-                  onChange={handleChange}
-                  className="radio-modern"
-                />
-                <span className="font-medium">1つ</span>
-              </label>
-              <label className="label-modern">
-                <input
-                  type="radio"
-                  name="entryNumber"
-                  value="2"
-                  checked={formData.entryNumber === '2'}
-                  onChange={handleChange}
-                  className="radio-modern"
-                />
-                <span className="font-medium">2つ</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Entry 1 */}
-          <div className="space-y-6 relative">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <span className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full flex items-center justify-center text-sm">1</span>
-              名義1
-            </h3>
+          {/* 基本情報 */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-bold text-gray-800">基本情報</h3>
             
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">名義名 *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">インディーズ名 *</label>
                 <input
                   type="text"
-                  name="name1"
-                  value={formData.name1}
+                  name="indies_name"
+                  value={formData.indies_name}
                   onChange={handleChange}
                   required
-                  placeholder="コンビ名/芸名"
                   className="input-field"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">代表者名 *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">エントリー名 *</label>
                 <input
                   type="text"
-                  name="representative1"
-                  value={formData.representative1}
+                  name="entry_name"
+                  value={formData.entry_name}
                   onChange={handleChange}
                   required
-                  placeholder="山田太郎"
                   className="input-field"
                 />
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">第1希望 *</label>
-                <select
-                  name="preference1_1"
-                  value={formData.preference1_1}
-                  onChange={handleChange}
-                  required
-                  className="select-field"
-                >
-                  <option value="">選択してください</option>
-                  {dates.map(date => (
-                    <option key={date} value={date}>{date}</option>
-                  ))}
-                </select>
+
+          </div>
+
+          {/* エントリー日程・演目 */}
+          <div className="mt-8 pt-8 border-t-2 border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">エントリー日程・演目 *</h3>
+            <p className="text-sm text-gray-600 mb-4">日付をクリックしてエントリー、演目を選択してください</p>
+            
+            {availableDates.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                <p className="text-gray-500 text-lg mb-2">エントリー可能な日程がありません</p>
+                <p className="text-gray-400 text-sm">管理者が対象月のライブ日程を設定するまでお待ちください</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">第2希望</label>
-                <select
-                  name="preference1_2"
-                  value={formData.preference1_2}
-                  onChange={handleChange}
-                  className="select-field"
-                >
-                  <option value="">選択してください</option>
-                  {dates.map(date => (
-                    <option key={date} value={date}>{date}</option>
-                  ))}
-                </select>
+            ) : (
+              <div className="space-y-3">
+                {availableDates.map(date => {
+                const selectedEntry = formData.entries.find(e => e.date === date)
+                const isSelected = !!selectedEntry
+                
+                return (
+                  <div key={date} className={`border-2 rounded-lg p-4 transition-all ${
+                    isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleDateToggle(date)}
+                        className={`font-medium text-left ${
+                          isSelected ? 'text-blue-700' : 'text-gray-700'
+                        }`}
+                      >
+                        {date}
+                      </button>
+                      
+                      {isSelected && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">演目:</span>
+                          <select
+                            value={selectedEntry.performance_type}
+                            onChange={(e) => handlePerformanceTypeChange(date, e.target.value as '漫才（漫談）' | 'コント' | '未定')}
+                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="漫才（漫談）">漫才（漫談）</option>
+                            <option value="コント">コント</option>
+                            <option value="未定">未定</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">第3希望</label>
-                <select
-                  name="preference1_3"
-                  value={formData.preference1_3}
-                  onChange={handleChange}
-                  className="select-field"
-                >
-                  <option value="">選択してください</option>
-                  {dates.map(date => (
-                    <option key={date} value={date}>{date}</option>
+            )}
+            
+            {formData.entries.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-800 mb-2">選択中のエントリー:</p>
+                <div className="space-y-1">
+                  {formData.entries.map(entry => (
+                    <div key={entry.date} className="text-sm text-blue-700">
+                      {entry.date}: {entry.performance_type}
+                    </div>
                   ))}
-                </select>
+                </div>
               </div>
+            )}
+          </div>
+
+          {/* 備考 */}
+          <div className="mt-8 pt-8 border-t-2 border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">備考</h3>
+            <div>
+              <textarea
+                name="remarks"
+                value={formData.remarks}
+                onChange={handleChange}
+                placeholder="8月5日は出番を早めにしてください / 8月19日は遅めの時間帯希望 / 特に希望なし"
+                className="input-field"
+                rows={3}
+              />
+              <p className="text-xs text-gray-500 mt-1">出番の時間帯やその他のご要望があれば記入してください（任意）</p>
             </div>
           </div>
 
-          {/* Entry 2 */}
-          {formData.entryNumber === '2' && (
-            <>
-              <div className="section-divider"></div>
-              
-              <div className="space-y-6 relative">
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full flex items-center justify-center text-sm">2</span>
-                  名義2
-                </h3>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">名義名 *</label>
-                    <input
-                      type="text"
-                      name="name2"
-                      value={formData.name2}
-                      onChange={handleChange}
-                      required={formData.entryNumber === '2'}
-                      placeholder="コンビ名/芸名"
-                      className="input-field"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">代表者名 *</label>
-                    <input
-                      type="text"
-                      name="representative2"
-                      value={formData.representative2}
-                      onChange={handleChange}
-                      required={formData.entryNumber === '2'}
-                      placeholder="山田太郎"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">第1希望 *</label>
-                    <select
-                      name="preference2_1"
-                      value={formData.preference2_1}
-                      onChange={handleChange}
-                      required={formData.entryNumber === '2'}
-                      className="select-field"
-                    >
-                      <option value="">選択してください</option>
-                      {dates.map(date => (
-                        <option key={date} value={date}>{date}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">第2希望</label>
-                    <select
-                      name="preference2_2"
-                      value={formData.preference2_2}
-                      onChange={handleChange}
-                      className="select-field"
-                    >
-                      <option value="">選択してください</option>
-                      {dates.map(date => (
-                        <option key={date} value={date}>{date}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">第3希望</label>
-                    <select
-                      name="preference2_3"
-                      value={formData.preference2_3}
-                      onChange={handleChange}
-                      className="select-field"
-                    >
-                      <option value="">選択してください</option>
-                      {dates.map(date => (
-                        <option key={date} value={date}>{date}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Email */}
+          {/* 連絡先 */}
           <div className="mt-8 pt-8 border-t-2 border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">連絡先</h3>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">連絡先メールアドレス *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">メールアドレス *</label>
               <input
                 type="email"
                 name="email"
@@ -779,7 +473,6 @@ export default function EntryPage() {
               />
             </div>
             
-            {/* LINE URL */}
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">LINE URL</label>
               <input
@@ -794,11 +487,10 @@ export default function EntryPage() {
             </div>
           </div>
 
-
           {/* Submit button */}
           <button
             type="submit"
-            disabled={isSubmitting || !canSubmit()}
+            disabled={isSubmitting || !isEntryOpen}
             className="w-full mt-8 btn-primary text-lg"
           >
             {isSubmitting ? (
@@ -809,9 +501,7 @@ export default function EntryPage() {
                 <span></span>
               </span>
             ) : (
-              canSubmit() ? 'エントリーする' : 
-              entryPhase === 'form_only' ? '22:00から送信可能' : 
-              '受付開始をお待ちください'
+              isEntryOpen ? 'エントリーする' : '受付開始をお待ちください'
             )}
           </button>
         </form>

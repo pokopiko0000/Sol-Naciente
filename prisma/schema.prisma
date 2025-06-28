@@ -8,32 +8,25 @@ datasource db {
 }
 
 model Entry {
-  id            String    @id @default(cuid())
-  entryNumber   Int       @default(1)
-  name1         String
-  representative1 String
-  preference1_1 String?
-  preference1_2 String?
-  preference1_3 String?
-  name2         String?
-  representative2 String?
-  preference2_1 String?
-  preference2_2 String?
-  preference2_3 String?
-  email         String
-  lineUrl       String?
-  liveType      LiveType
-  timestamp     DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  assignments   Assignment[]
+  id              String    @id @default(cuid())
+  indies_name     String    // インディーズ名
+  entry_name      String    // エントリー名
+  performance_type String   // 演目: '漫才（漫談）' | 'コント' | '未定'
+  target_date     DateTime  // エントリー対象日
+  remarks         String?   // 備考
+  email           String
+  lineUrl         String?
+  timestamp       DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  assignments     Assignment[]
 }
 
 model Live {
   id        String    @id @default(cuid())
   date      DateTime
-  type      LiveType
-  capacity  Int
+  capacity  Int       @default(24) // 日の出寄席は24組固定
+  is_confirmed Boolean @default(false) // 香盤表確定フラグ
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   assignments Assignment[]
@@ -43,21 +36,28 @@ model Assignment {
   id        String    @id @default(cuid())
   entryId   String
   liveId    String
-  nameIndex Int
   status    AssignmentStatus @default(ASSIGNED)
-  order     Int?      // 香盤表での順序（ランダムに決定）
+  order     Int?      // 香盤表での順序
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   
   entry     Entry     @relation(fields: [entryId], references: [id])
   live      Live      @relation(fields: [liveId], references: [id])
   
-  @@unique([entryId, liveId, nameIndex])
+  @@unique([entryId, liveId])
 }
 
-enum LiveType {
-  KUCHIBE
-  NIWARA
+// LiveTypeは削除（日の出寄席のみ）
+
+model Settings {
+  id                String   @id @default(cuid())
+  entry_start_time  DateTime // エントリー開始時間
+  entry_end_time    DateTime // エントリー終了時間
+  is_entry_active   Boolean  @default(false) // エントリー受付中フラグ
+  target_year       Int?     // 募集対象年
+  target_month      Int?     // 募集対象月
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 enum AssignmentStatus {

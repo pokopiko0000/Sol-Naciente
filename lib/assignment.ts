@@ -1,42 +1,51 @@
 import { prisma } from '@/lib/db'
-import { Entry, Live, LiveType } from '@prisma/client'
+import { Entry, Live } from '@prisma/client'
 
 type AssignmentResult = {
   assignments: {
     entryId: string
     liveId: string
-    nameIndex: number
     order: number
   }[]
   waitingList: string[]
 }
 
-export async function autoAssignEntries(liveType: LiveType): Promise<AssignmentResult> {
-  console.log('🔍 Starting assignment for liveType:', liveType)
+export async function autoAssignEntries(): Promise<AssignmentResult> {
+  console.log('🔍 Starting assignment for 日の出寄席')
   
   // デバッグ用：環境変数を確認
   console.log('📍 NODE_ENV:', process.env.NODE_ENV)
   console.log('📍 DISABLE_TIME_RESTRICTION:', process.env.DISABLE_TIME_RESTRICTION)
   
-  // Check if time restrictions should be disabled (for testing/development)
+  // 時間制限の無効化判定（開発・テスト用）
   const disableTimeRestriction = process.env.NODE_ENV === 'development' || 
                                 process.env.NODE_ENV === 'test' || 
                                 process.env.DISABLE_TIME_RESTRICTION === 'true'
   
   console.log('⏰ Time restriction disabled:', disableTimeRestriction)
   
-  const whereClause: any = {
-    liveType
-  }
+  const whereClause: any = {}
   
-  // Only apply time restrictions in production environment
+  // 設定ベースの時間制限を適用
   if (!disableTimeRestriction) {
-    const timeStart = new Date(new Date().setHours(22, 0, 0, 0))
-    const timeEnd = new Date(new Date().setHours(22, 30, 0, 0))
-    console.log('⏰ Time restriction applied:', timeStart, 'to', timeEnd)
+    const settings = await prisma.settings.findFirst({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    if (!settings || !settings.is_entry_active) {
+      console.log('⏰ Entry not active or no settings found')
+      return { assignments: [], waitingList: [] }
+    }
+
+    const entryStart = new Date(settings.entry_start_time)
+    const entryEnd = new Date(settings.entry_end_time)
+    
+    console.log('⏰ Time restriction applied:', entryStart, 'to', entryEnd)
     whereClause.createdAt = {
-      gte: timeStart,
-      lt: timeEnd
+      gte: entryStart,
+      lte: entryEnd
     }
   } else {
     console.log('⏰ No time restriction - fetching all entries')
@@ -44,47 +53,52 @@ export async function autoAssignEntries(liveType: LiveType): Promise<AssignmentR
   
   console.log('🔍 Where clause:', JSON.stringify(whereClause, null, 2))
   
+  // エントリーを受付時刻順で取得
   const entries = await prisma.entry.findMany({
     where: whereClause,
     orderBy: {
-      timestamp: 'asc'
+      timestamp: 'asc' // 先着順
     }
   })
 
+  // 利用可能なライブを取得（日の出寄席のみ、ライブタイプなし）
   const lives = await prisma.live.findMany({
     where: {
-      type: liveType,
       date: {
         gte: new Date()
       }
     },
     include: {
       assignments: true
+    },
+    orderBy: {
+      date: 'asc'
     }
   })
   
   console.log('📊 Found entries:', entries.length)
   console.log('🎭 Found lives:', lives.length)
   
-  
-  // Debug: Show all entries
+  // デバッグ：全エントリーを表示
   entries.forEach(entry => {
     console.log('📝 Entry:', {
       id: entry.id,
-      name1: entry.name1,
-      preferences: [entry.preference1_1, entry.preference1_2, entry.preference1_3].filter(Boolean),
+      indies_name: entry.indies_name,
+      entry_name: entry.entry_name,
+      target_date: entry.target_date,
+      performance_type: entry.performance_type,
       timestamp: entry.timestamp || entry.createdAt
     })
   })
   
-  // Debug: Show live dates format
+  // デバッグ：ライブ日程を表示
   lives.forEach(live => {
-    const liveDate = live.date.toLocaleDateString('ja-JP', {
-      month: 'long',
-      day: 'numeric',
-      weekday: 'short'
-    }).replace('2025年', '')
-    console.log('📅 Live date formatted:', liveDate, 'from', live.date)
+    console.log('📅 Live:', {
+      id: live.id,
+      date: live.date,
+      capacity: live.capacity,
+      currentAssignments: live.assignments.length
+    })
   })
 
   const result: AssignmentResult = {
@@ -92,130 +106,64 @@ export async function autoAssignEntries(liveType: LiveType): Promise<AssignmentR
     waitingList: []
   }
 
-  const capacityMap = new Map<string, number>()
+  // 各ライブの現在の配置数を追跡
   const assignedPerLive = new Map<string, number>()
-  const assignedNames = new Set<string>()
-  const assignedRepresentatives = new Map<string, number>()
-
   lives.forEach(live => {
-    const capacity = liveType === 'KUCHIBE' ? 11 : 16
-    capacityMap.set(live.id, capacity)
     assignedPerLive.set(live.id, live.assignments.length)
   })
 
+  // シンプルな先着順処理
   for (const entry of entries) {
-    console.log('🎪 Processing entry:', entry.name1, 'preferences:', [entry.preference1_1, entry.preference1_2, entry.preference1_3].filter(Boolean))
+    console.log('🎪 Processing entry:', entry.entry_name, 'target_date:', entry.target_date)
     
-    let assigned1 = false
-    let assigned2 = false
+    // エントリー対象日に該当するライブを検索
+    const targetLive = lives.find(live => {
+      const liveDate = live.date.toDateString()
+      const entryDate = new Date(entry.target_date).toDateString()
+      return liveDate === entryDate
+    })
 
-    const preferences1 = [
-      entry.preference1_1,
-      entry.preference1_2,
-      entry.preference1_3
-    ].filter(Boolean)
-
-    for (const pref of preferences1) {
-      if (assigned1) break
-
-      const live = lives.find(l => {
-        const liveDate = l.date.toLocaleDateString('ja-JP', {
-          month: 'long',
-          day: 'numeric',
-          weekday: 'short'
-        }).replace('2025年', '')
-        return liveDate === pref
-      })
-
-      if (!live) continue
-
-      const currentCount = assignedPerLive.get(live.id) || 0
-      const capacity = capacityMap.get(live.id) || 0
-      const repCount = assignedRepresentatives.get(entry.representative1) || 0
-
-      if (
-        currentCount < capacity &&
-        !assignedNames.has(entry.name1) &&
-        repCount < 2
-      ) {
-        result.assignments.push({
-          entryId: entry.id,
-          liveId: live.id,
-          nameIndex: 1,
-          order: 0 // 後でランダム順序に置き換える
-        })
-        assignedPerLive.set(live.id, currentCount + 1)
-        assignedNames.add(entry.name1)
-        assignedRepresentatives.set(entry.representative1, repCount + 1)
-        assigned1 = true
-      }
-    }
-
-    if (entry.entryNumber === 2 && entry.name2 && entry.representative2) {
-      const preferences2 = [
-        entry.preference2_1,
-        entry.preference2_2,
-        entry.preference2_3
-      ].filter(Boolean)
-
-      for (const pref of preferences2) {
-        if (assigned2) break
-
-        const live = lives.find(l => {
-          const liveDate = l.date.toLocaleDateString('ja-JP', {
-            month: 'long',
-            day: 'numeric',
-            weekday: 'short'
-          }).replace('2025年', '')
-          return liveDate === pref
-        })
-
-        if (!live) continue
-
-        const currentCount = assignedPerLive.get(live.id) || 0
-        const capacity = capacityMap.get(live.id) || 0
-        const repCount = assignedRepresentatives.get(entry.representative2) || 0
-
-        if (
-          currentCount < capacity &&
-          !assignedNames.has(entry.name2) &&
-          repCount < 2
-        ) {
-          result.assignments.push({
-            entryId: entry.id,
-            liveId: live.id,
-            nameIndex: 2,
-            order: 0 // 後でランダム順序に置き換える
-          })
-          assignedPerLive.set(live.id, currentCount + 1)
-          assignedNames.add(entry.name2)
-          assignedRepresentatives.set(entry.representative2, repCount + 1)
-          assigned2 = true
-        }
-      }
-    }
-
-    if (!assigned1 && !assigned2) {
+    if (!targetLive) {
+      console.log('❌ No matching live found for date:', entry.target_date)
       result.waitingList.push(entry.id)
+      continue
+    }
+
+    const currentCount = assignedPerLive.get(targetLive.id) || 0
+    const capacity = targetLive.capacity || 24 // デフォルト24組
+
+    if (currentCount < capacity) {
+      // 配置可能（順序は後でランダムに決定）
+      result.assignments.push({
+        entryId: entry.id,
+        liveId: targetLive.id,
+        order: 0 // 一時的に0を設定
+      })
+      assignedPerLive.set(targetLive.id, currentCount + 1)
+      console.log('✅ Assigned:', entry.entry_name, 'to live', targetLive.id)
+    } else {
+      // 定員オーバー
+      result.waitingList.push(entry.id)
+      console.log('❌ Capacity full for live', targetLive.id, 'adding to waiting list:', entry.entry_name)
     }
   }
 
-  // 各ライブの配置にランダム順序を付与
-  const liveAssignments = new Map<string, typeof result.assignments>()
+  // 各ライブごとにランダムな順序を付与
+  const liveGroups = new Map<string, typeof result.assignments>()
   
-  // ライブ別にアサインメントをグループ化
+  // ライブごとにグループ化
   for (const assignment of result.assignments) {
-    if (!liveAssignments.has(assignment.liveId)) {
-      liveAssignments.set(assignment.liveId, [])
+    if (!liveGroups.has(assignment.liveId)) {
+      liveGroups.set(assignment.liveId, [])
     }
-    liveAssignments.get(assignment.liveId)!.push(assignment)
+    liveGroups.get(assignment.liveId)!.push(assignment)
   }
   
-  // 各ライブのアサインメントをランダムに並び替えて順序を付与
+  // 各ライブのアサインメントをシャッフルして順序を付与
   const finalAssignments: typeof result.assignments = []
   
-  for (const [liveId, assignments] of Array.from(liveAssignments)) {
-    // Fisher-Yatesアルゴリズムでランダムシャッフル
+  for (const [liveId, assignments] of liveGroups) {
+    // Fisher-Yatesアルゴリズムでシャッフル
     const shuffled = [...assignments]
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -224,15 +172,18 @@ export async function autoAssignEntries(liveType: LiveType): Promise<AssignmentR
     
     // 順序を付与
     shuffled.forEach((assignment, index) => {
-      finalAssignments.push({
-        ...assignment,
-        order: index + 1
-      })
+      assignment.order = index + 1
+      finalAssignments.push(assignment)
     })
     
-    console.log(`🎲 Live ${liveId}: ${shuffled.length}人をランダム順序で配置`)
+    console.log(`🎲 Live ${liveId}: ${shuffled.length}組をランダム順序で配置`)
   }
+
+  console.log('📋 Final assignments:', finalAssignments.length)
+  console.log('⏳ Waiting list:', result.waitingList.length)
   
-  result.assignments = finalAssignments
-  return result
+  return {
+    assignments: finalAssignments,
+    waitingList: result.waitingList
+  }
 }

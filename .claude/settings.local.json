@@ -15,7 +15,10 @@
       "Bash(touch:*)",
       "Bash(git push:*)",
       "Bash(rg:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 30s npm run dev)"
     ],
     "deny": []
   }
