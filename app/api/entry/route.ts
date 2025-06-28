@@ -22,6 +22,14 @@ export async function POST(request: NextRequest) {
   try {
     data = await request.json()
     
+    // データの存在チェック
+    if (!data) {
+      return NextResponse.json(
+        { error: 'リクエストデータが無効です' },
+        { status: 400 }
+      )
+    }
+    
     // 開発環境での時間制限無効化
     const isTestMode = process.env.NODE_ENV === 'development' || process.env.DISABLE_TIME_RESTRICTION === 'true'
     
