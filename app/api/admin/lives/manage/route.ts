@@ -12,16 +12,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { date, type, capacity } = await request.json()
+    const { date, capacity } = await request.json()
     
     // 日付をDateオブジェクトに変換
     const liveDate = new Date(date)
     
-    // 同じ日付・タイプのライブが既に存在するかチェック
+    // 同じ日付のライブが既に存在するかチェック
     const existing = await prisma.live.findFirst({
       where: {
-        date: liveDate,
-        type
+        date: liveDate
       }
     })
     
@@ -32,12 +31,11 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // ライブを作成
+    // ライブを作成（日の出寄席は24組固定）
     const live = await prisma.live.create({
       data: {
         date: liveDate,
-        type,
-        capacity: capacity || (type === 'KUCHIBE' ? 11 : 16)
+        capacity: capacity || 24
       }
     })
     
