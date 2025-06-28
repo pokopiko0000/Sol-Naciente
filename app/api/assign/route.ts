@@ -1,31 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { autoAssignEntries } from '@/lib/assignment'
-import { LiveType } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { liveType } = await request.json()
-    
-    if (!liveType || !['KUCHIBE', 'NIWARA'].includes(liveType)) {
-      return NextResponse.json(
-        { error: '無効なライブタイプです' },
-        { status: 400 }
-      )
+    // 簡易認証チェック
+    const authHeader = request.headers.get('authorization')
+    if (authHeader !== 'Bearer owarai2025') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // 既存のアサインメントを削除（該当ライブタイプのみ）
-    await prisma.assignment.deleteMany({
-      where: {
-        live: {
-          type: liveType as LiveType
-        }
-      }
-    })
+    // 既存のアサインメントを削除（日の出寄席のみ）
+    await prisma.assignment.deleteMany({})
     
-    const result = await autoAssignEntries(liveType as LiveType)
+    const result = await autoAssignEntries()
     
     // 新しいアサインメントを作成
     await prisma.$transaction(
