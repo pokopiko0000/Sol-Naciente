@@ -7,6 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "check": "node scripts/check-build.js",
+    "type-check": "npx tsc --noEmit --skipLibCheck",
     "postinstall": "prisma generate",
     "db:init": "node scripts/init-db.js",
     "db:reset": "prisma migrate reset --force && npm run db:seed",

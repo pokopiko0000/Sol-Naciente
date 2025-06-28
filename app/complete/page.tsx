@@ -32,7 +32,7 @@ export default function CompletePage() {
           </h1>
           
           <p className="text-gray-700 mb-8 text-lg">
-            出演の可否は23:00頃に決定予定です。<br />
+            出演の可否は後日決定予定です。<br />
             下記で香盤表をご確認ください。
           </p>
           
