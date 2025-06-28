@@ -110,7 +110,7 @@ export default function EntryPage() {
     fetchEntrySettings()
     
     return () => clearInterval(timer)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLiveDates = async () => {
     try {
