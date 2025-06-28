@@ -18,9 +18,8 @@ type EntryRequest = {
 }
 
 export async function POST(request: NextRequest) {
-  let data: EntryRequest | null = null
   try {
-    data = await request.json()
+    const data: EntryRequest = await request.json()
     
     // データの存在チェック
     if (!data) {
@@ -100,8 +99,7 @@ export async function POST(request: NextRequest) {
     console.error('Entry creation error:', error)
     console.error('Error details:', {
       message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      data: data
+      stack: error instanceof Error ? error.stack : undefined
     })
     return NextResponse.json(
       { 
