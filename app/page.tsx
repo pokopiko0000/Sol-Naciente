@@ -110,7 +110,7 @@ export default function EntryPage() {
     fetchEntrySettings()
     
     return () => clearInterval(timer)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [entrySettings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLiveDates = async () => {
     try {
@@ -127,11 +127,25 @@ export default function EntryPage() {
     try {
       const response = await fetch('/api/entry-status')
       const data = await response.json()
+      console.log('Fetched entry settings:', data.settings)
       setEntrySettings(data.settings)
     } catch (error) {
       console.error('Failed to fetch entry settings:', error)
     }
   }
+
+  // 設定を定期的に取得
+  useEffect(() => {
+    // 初回取得
+    fetchEntrySettings()
+    
+    // 30秒ごとに設定を再取得
+    const settingsTimer = setInterval(() => {
+      fetchEntrySettings()
+    }, 30000)
+    
+    return () => clearInterval(settingsTimer)
+  }, [])
 
   // まだマウントされていない場合はローディング表示
   if (!mounted || !currentTime) {
