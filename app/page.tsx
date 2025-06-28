@@ -36,6 +36,7 @@ export default function EntryPage() {
   const [mounted, setMounted] = useState(false)
   const [entryPhase, setEntryPhase] = useState<'waiting' | 'accepting' | 'closed'>('waiting')
   const [entrySettings, setEntrySettings] = useState<any>(null)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -141,8 +142,10 @@ export default function EntryPage() {
       const data = await response.json()
       console.log('Fetched entry settings:', data.settings)
       setEntrySettings(data.settings)
+      setSettingsLoaded(true)
     } catch (error) {
       console.error('Failed to fetch entry settings:', error)
+      setSettingsLoaded(true)
     }
   }
 
@@ -159,8 +162,8 @@ export default function EntryPage() {
     return () => clearInterval(settingsTimer)
   }, [])
 
-  // まだマウントされていない場合はローディング表示
-  if (!mounted || !currentTime) {
+  // まだマウントされていない場合または設定読み込み中はローディング表示
+  if (!mounted || !currentTime || !settingsLoaded) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
