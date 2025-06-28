@@ -80,6 +80,7 @@ export default function AdminPage() {
         }
       })
       const data = await response.json()
+      console.log('Fetched admin settings:', data.settings)
       setSettings(data.settings)
       if (data.settings) {
         setEntryStartTime(data.settings.entry_start_time ? new Date(data.settings.entry_start_time).toISOString().slice(0, 16) : '')
@@ -259,10 +260,14 @@ export default function AdminPage() {
       })
 
       if (response.ok) {
+        const data = await response.json()
+        console.log('Settings updated:', data)
         alert('エントリー設定が更新されました')
         fetchSettings()
       } else {
-        alert('設定の更新に失敗しました')
+        const errorData = await response.json()
+        console.error('Settings update failed:', errorData)
+        alert('設定の更新に失敗しました: ' + (errorData.error || '不明なエラー'))
       }
     } catch (error) {
       console.error('Settings update error:', error)

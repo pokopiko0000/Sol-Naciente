@@ -57,6 +57,14 @@ export default function EntryPage() {
         const entryStart = new Date(entrySettings.entry_start_time)
         const entryEnd = new Date(entrySettings.entry_end_time)
         
+        console.log('Entry check:', {
+          now: now.toISOString(),
+          entryStart: entryStart.toISOString(),
+          entryEnd: entryEnd.toISOString(),
+          isActive: entrySettings.is_entry_active,
+          condition: now >= entryStart && now <= entryEnd
+        })
+        
         if (now >= entryStart && now <= entryEnd) {
           // エントリー受付中
           setShowForm(true)
@@ -99,6 +107,10 @@ export default function EntryPage() {
         }
       } else {
         // 設定されていないか無効
+        console.log('No entry settings or inactive:', {
+          entrySettings,
+          isActive: entrySettings?.is_entry_active
+        })
         setShowForm(false)
         setEntryPhase('waiting')
         setIsEntryOpen(false)
