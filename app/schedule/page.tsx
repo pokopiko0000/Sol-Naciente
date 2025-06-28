@@ -99,7 +99,7 @@ export default function SchedulePage() {
               </p>
               <a
                 href="/"
-                className="inline-block px-8 py-3 bg-gray-900 text-white rounded-md font-semibold hover:bg-black transition-colors"
+                className="btn-primary inline-block"
               >
                 エントリーページに戻る
               </a>
@@ -176,7 +176,7 @@ export default function SchedulePage() {
         <div className="text-center mt-12">
           <a
             href="/"
-            className="inline-block px-8 py-3 bg-gray-900 text-white rounded-md font-semibold hover:bg-black transition-colors"
+            className="btn-primary inline-block"
           >
             エントリーページに戻る
           </a>

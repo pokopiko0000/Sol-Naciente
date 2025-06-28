@@ -314,11 +314,15 @@ export default function AdminPage() {
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-          <h1 className="text-2xl font-bold mb-6 text-center">日の出寄席 管理画面</h1>
+      <div className="min-h-screen gradient-bg relative overflow-hidden flex items-center justify-center">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float"></div>
+        <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float" style={{ animationDelay: '2s' }}></div>
+        
+        <div className="glass-card max-w-md w-full mx-4">
+          <h1 className="text-4xl font-bold mb-6 text-center text-gray-900">日の出寄席</h1>
+          <p className="text-xl text-gray-600 text-center mb-8">管理画面</p>
           <form onSubmit={handlePasswordSubmit}>
-            <div className="mb-4">
+            <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-2">
                 パスワード
               </label>
@@ -326,13 +330,13 @@ export default function AdminPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input-field"
                 placeholder="パスワードを入力"
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="btn-primary w-full"
             >
               ログイン
             </button>
@@ -343,48 +347,54 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen gradient-bg relative overflow-hidden">
+      <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float"></div>
+      <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float" style={{ animationDelay: '2s' }}></div>
+      
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">日の出寄席 管理画面</h1>
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">日の出寄席</h1>
+          <p className="text-xl text-gray-600">管理画面</p>
+        </div>
         
         {/* タブナビゲーション */}
-        <div className="flex mb-6 bg-white rounded-lg shadow-sm">
+        <div className="flex mb-6 glass-card p-1">
           <button
             onClick={() => setActiveTab('entries')}
-            className={`flex-1 py-3 px-4 text-center rounded-l-lg transition-colors ${
+            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
               activeTab === 'entries' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'bg-gray-900 text-white shadow-md' 
+                : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             エントリー一覧
           </button>
           <button
             onClick={() => setActiveTab('schedule')}
-            className={`flex-1 py-3 px-4 text-center transition-colors ${
+            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
               activeTab === 'schedule' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'bg-gray-900 text-white shadow-md' 
+                : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             香盤表
           </button>
           <button
             onClick={() => setActiveTab('lives')}
-            className={`flex-1 py-3 px-4 text-center transition-colors ${
+            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
               activeTab === 'lives' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'bg-gray-900 text-white shadow-md' 
+                : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             ライブ管理
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-3 px-4 text-center rounded-r-lg transition-colors ${
+            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
               activeTab === 'settings' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'bg-gray-900 text-white shadow-md' 
+                : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             エントリー設定
@@ -392,11 +402,11 @@ export default function AdminPage() {
         </div>
 
         {/* アクションボタン */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-wrap gap-4 mb-6">
           <button
             onClick={assignEntries}
             disabled={isAssigning}
-            className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400"
+            className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-black disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300"
           >
             {isAssigning ? '振り分け中...' : '自動振り分け実行'}
           </button>
@@ -407,7 +417,7 @@ export default function AdminPage() {
               const month = currentDate.getMonth() + 1
               resetSystem(year, month)
             }}
-            className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700"
+            className="bg-gray-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-700 transition-all duration-300"
           >
             今月のデータをリセット
           </button>
@@ -415,9 +425,9 @@ export default function AdminPage() {
 
         {/* エントリー一覧 */}
         {activeTab === 'entries' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">エントリー一覧 ({entries.length}件)</h2>
+          <div className="glass-card">
+            <div>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">エントリー一覧 ({entries.length}件)</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -456,16 +466,16 @@ export default function AdminPage() {
 
         {/* 香盤表 */}
         {activeTab === 'schedule' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">香盤表</h2>
+          <div className="glass-card">
+            <div>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">香盤表</h2>
               {lives.map(live => {
                 const startTime = new Date(live.date)
                 const endTime = new Date(startTime.getTime() + 90 * 60 * 1000)
                 
                 return (
-                  <div key={live.id} className="mb-6 border rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-2">
+                  <div key={live.id} className="mb-6 bg-white/50 border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-xl font-bold mb-3 text-gray-800">
                       {startTime.toLocaleDateString('ja-JP', {
                         year: 'numeric',
                         month: 'long',
@@ -516,7 +526,7 @@ export default function AdminPage() {
                                 }
                               }}
                               disabled={index === 0 || live.is_confirmed}
-                              className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                             >
                               ↑
                             </button>
@@ -530,7 +540,7 @@ export default function AdminPage() {
                                 }
                               }}
                               disabled={index === live.assignments.length - 1 || live.is_confirmed}
-                              className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                             >
                               ↓
                             </button>
@@ -543,12 +553,12 @@ export default function AdminPage() {
                         {!live.is_confirmed ? (
                           <button
                             onClick={() => confirmSchedule(live.id)}
-                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                            className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-black transition-all duration-300"
                           >
                             香盤表を確定する
                           </button>
                         ) : (
-                          <span className="text-green-600 font-semibold">✓ 確定済み</span>
+                          <span className="text-gray-700 font-semibold bg-gray-100 px-4 py-2 rounded-lg">✓ 確定済み</span>
                         )}
                       </div>
                     )}
@@ -561,13 +571,13 @@ export default function AdminPage() {
 
         {/* ライブ管理 */}
         {activeTab === 'lives' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">ライブ管理</h2>
+          <div className="glass-card">
+            <div>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">ライブ管理</h2>
               
               {/* 新しいライブ追加 */}
-              <div className="mb-6 p-4 border rounded-lg">
-                <h3 className="text-lg font-semibold mb-3">新しいライブを追加</h3>
+              <div className="mb-8 p-6 bg-white/50 border border-gray-200 rounded-lg">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">新しいライブを追加</h3>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">日付</label>
@@ -575,7 +585,7 @@ export default function AdminPage() {
                       type="date"
                       value={newLiveDate}
                       onChange={(e) => setNewLiveDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="input-field"
                     />
                   </div>
                   <div>
@@ -586,7 +596,7 @@ export default function AdminPage() {
                       max="23"
                       value={newLiveHour}
                       onChange={(e) => setNewLiveHour(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="input-field"
                       placeholder="19"
                     />
                   </div>
@@ -595,7 +605,7 @@ export default function AdminPage() {
                     <select
                       value={newLiveMinute}
                       onChange={(e) => setNewLiveMinute(e.target.value as '00' | '30')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="input-field"
                     >
                       <option value="00">00</option>
                       <option value="30">30</option>
@@ -614,7 +624,7 @@ export default function AdminPage() {
                   <div className="flex items-end">
                     <button
                       onClick={createLive}
-                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                      className="btn-primary w-full"
                     >
                       追加
                     </button>
@@ -629,7 +639,7 @@ export default function AdminPage() {
                   const endTime = new Date(startTime.getTime() + 90 * 60 * 1000)
                   
                   return (
-                    <div key={live.id} className="p-4 border rounded-lg">
+                    <div key={live.id} className="p-6 bg-white/50 border border-gray-200 rounded-lg">
                       <div className="flex justify-between items-center">
                         <div>
                           <h4 className="font-semibold">
@@ -664,13 +674,13 @@ export default function AdminPage() {
 
         {/* エントリー設定 */}
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">エントリー受付設定</h2>
+          <div className="glass-card">
+            <div>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">エントリー受付設定</h2>
               
-              <div className="space-y-6">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4">エントリー受付時間設定</h3>
+              <div className="space-y-8">
+                <div className="p-6 bg-white/50 border border-gray-200 rounded-lg">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">エントリー受付時間設定</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
@@ -679,7 +689,7 @@ export default function AdminPage() {
                         type="datetime-local"
                         value={entryStartTime}
                         onChange={(e) => setEntryStartTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="input-field"
                       />
                     </div>
                     <div>
@@ -688,7 +698,7 @@ export default function AdminPage() {
                         type="datetime-local"
                         value={entryEndTime}
                         onChange={(e) => setEntryEndTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="input-field"
                       />
                     </div>
                   </div>
@@ -701,7 +711,7 @@ export default function AdminPage() {
                         <select
                           value={targetYear}
                           onChange={(e) => setTargetYear(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          className="input-field"
                         >
                           <option value="">年を選択</option>
                           {[2024, 2025, 2026].map(year => (
@@ -714,7 +724,7 @@ export default function AdminPage() {
                         <select
                           value={targetMonth}
                           onChange={(e) => setTargetMonth(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          className="input-field"
                         >
                           <option value="">月を選択</option>
                           {Array.from({length: 12}, (_, i) => i + 1).map(month => (
@@ -742,15 +752,15 @@ export default function AdminPage() {
 
                   <button
                     onClick={updateEntrySettings}
-                    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+                    className="btn-primary"
                   >
                     設定を更新
                   </button>
                 </div>
 
                 {settings && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="text-lg font-semibold mb-3">現在の設定</h3>
+                  <div className="p-6 bg-white/30 border border-gray-200 rounded-lg">
+                    <h3 className="text-xl font-bold mb-4 text-gray-800">現在の設定</h3>
                     <div className="space-y-2 text-sm">
                       <p><strong>開始日時:</strong> {settings.entry_start_time ? new Date(settings.entry_start_time).toLocaleString('ja-JP') : '未設定'}</p>
                       <p><strong>終了日時:</strong> {settings.entry_end_time ? new Date(settings.entry_end_time).toLocaleString('ja-JP') : '未設定'}</p>
