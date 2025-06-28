@@ -432,7 +432,20 @@ export default function AdminPage() {
         {activeTab === 'entries' && (
           <div className="glass-card">
             <div>
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">エントリー一覧 ({entries.length}件)</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">エントリー一覧 ({entries.length}件)</h2>
+                <button
+                  onClick={assignEntries}
+                  disabled={entries.length === 0 || isAssigning}
+                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+                    entries.length === 0 || isAssigning
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gray-900 text-white hover:bg-black hover:shadow-lg'
+                  }`}
+                >
+                  {isAssigning ? '振り分け中...' : '自動振り分け実行'}
+                </button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>

@@ -97,12 +97,6 @@ export default function SchedulePage() {
                 香盤表は振り分け完了後に公開されます。<br />
                 しばらくお待ちください。
               </p>
-              <a
-                href="/"
-                className="btn-primary inline-block"
-              >
-                エントリーページに戻る
-              </a>
             </div>
           </div>
         ) : (
