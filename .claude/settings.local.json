@@ -21,7 +21,8 @@
       "Bash(timeout 30s npm run dev)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(npm update:*)"
+      "Bash(npm update:*)",
+      "Bash(npm run type-check:*)"
     ],
     "deny": []
   }

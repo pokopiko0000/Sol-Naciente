@@ -37,14 +37,43 @@ export default function EntryPage() {
   const [entryPhase, setEntryPhase] = useState<'waiting' | 'accepting' | 'closed'>('waiting')
   const [entrySettings, setEntrySettings] = useState<any>(null)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [lastSettingsUpdate, setLastSettingsUpdate] = useState<number>(0)
 
+  // 時間表示用のuseEffect（設定に依存しない）
   useEffect(() => {
     setMounted(true)
     setCurrentTime(new Date())
     
     const timer = setInterval(() => {
-      const now = new Date()
-      setCurrentTime(now)
+      setCurrentTime(new Date())
+    }, 1000)
+    
+    return () => clearInterval(timer)
+  }, [])
+
+  // 設定取得用のuseEffect
+  useEffect(() => {
+    fetchEntrySettings()
+    
+    // 30秒ごとに設定を再取得
+    const settingsTimer = setInterval(() => {
+      fetchEntrySettings()
+    }, 30000)
+    
+    return () => clearInterval(settingsTimer)
+  }, [])
+
+  // エントリー日程取得用のuseEffect
+  useEffect(() => {
+    fetchLiveDates()
+  }, [lastSettingsUpdate])
+
+  // 時間判定用のuseEffect
+  useEffect(() => {
+    if (!currentTime || !settingsLoaded) return
+
+    const checkEntryStatus = () => {
+      const now = currentTime
       
       // 設定ベースの時間制限チェック
       const isTestMode = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_TEST_MODE === 'true'
@@ -54,76 +83,83 @@ export default function EntryPage() {
         setEntryPhase('accepting')
         setIsEntryOpen(true)
         setTimeUntilClose('開発環境：受付中')
-      } else if (entrySettings && entrySettings.is_entry_active) {
-        const entryStart = new Date(entrySettings.entry_start_time)
-        const entryEnd = new Date(entrySettings.entry_end_time)
-        
-        console.log('Entry check:', {
-          now: now.toISOString(),
-          entryStart: entryStart.toISOString(),
-          entryEnd: entryEnd.toISOString(),
-          isActive: entrySettings.is_entry_active,
-          condition: now >= entryStart && now <= entryEnd
-        })
-        
-        if (now >= entryStart && now <= entryEnd) {
-          // エントリー受付中
-          setShowForm(true)
-          setEntryPhase('accepting')
-          setIsEntryOpen(true)
-          
-          const timeLeft = entryEnd.getTime() - now.getTime()
-          const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60))
-          const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
-          
-          if (hoursLeft > 0) {
-            setTimeUntilClose(`残り${hoursLeft}時間${minutesLeft}分`)
-          } else {
-            setTimeUntilClose(`残り${minutesLeft}分`)
-          }
-        } else if (now < entryStart) {
-          // エントリー開始前
-          setShowForm(false)
-          setEntryPhase('waiting')
-          setIsEntryOpen(false)
-          
-          const timeUntil = entryStart.getTime() - now.getTime()
-          const daysUntil = Math.floor(timeUntil / (1000 * 60 * 60 * 24))
-          const hoursUntil = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-          const minutesUntil = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60))
-          
-          if (daysUntil > 0) {
-            setTimeUntilClose(`エントリー開始まで${daysUntil}日${hoursUntil}時間`)
-          } else if (hoursUntil > 0) {
-            setTimeUntilClose(`エントリー開始まで${hoursUntil}時間${minutesUntil}分`)
-          } else {
-            setTimeUntilClose(`エントリー開始まで${minutesUntil}分`)
-          }
-        } else {
-          // エントリー終了後
-          setShowForm(false)
-          setEntryPhase('closed')
-          setIsEntryOpen(false)
-          setTimeUntilClose('エントリー受付終了')
-        }
-      } else {
-        // 設定されていないか無効
-        console.log('No entry settings or inactive:', {
-          entrySettings,
-          isActive: entrySettings?.is_entry_active
-        })
+        return
+      }
+      
+      if (!entrySettings) {
+        console.log('No entry settings available')
         setShowForm(false)
         setEntryPhase('waiting')
         setIsEntryOpen(false)
-        setTimeUntilClose('エントリー受付時間外')
+        setTimeUntilClose('設定読み込み中...')
+        return
       }
-    }, 1000)
+      
+      // is_entry_activeのチェック
+      if (!entrySettings.is_entry_active) {
+        console.log('Entry is not active:', entrySettings)
+        setShowForm(false)
+        setEntryPhase('waiting')
+        setIsEntryOpen(false)
+        setTimeUntilClose('エントリー受付停止中')
+        return
+      }
+      
+      const entryStart = new Date(entrySettings.entry_start_time)
+      const entryEnd = new Date(entrySettings.entry_end_time)
+      
+      console.log('Entry check:', {
+        now: now.toISOString(),
+        entryStart: entryStart.toISOString(),
+        entryEnd: entryEnd.toISOString(),
+        isActive: entrySettings.is_entry_active,
+        condition: now >= entryStart && now <= entryEnd
+      })
+      
+      if (now >= entryStart && now <= entryEnd) {
+        // エントリー受付中
+        setShowForm(true)
+        setEntryPhase('accepting')
+        setIsEntryOpen(true)
+        
+        const timeLeft = entryEnd.getTime() - now.getTime()
+        const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60))
+        const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+        
+        if (hoursLeft > 0) {
+          setTimeUntilClose(`残り${hoursLeft}時間${minutesLeft}分`)
+        } else {
+          setTimeUntilClose(`残り${minutesLeft}分`)
+        }
+      } else if (now < entryStart) {
+        // エントリー開始前
+        setShowForm(false)
+        setEntryPhase('waiting')
+        setIsEntryOpen(false)
+        
+        const timeUntil = entryStart.getTime() - now.getTime()
+        const daysUntil = Math.floor(timeUntil / (1000 * 60 * 60 * 24))
+        const hoursUntil = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+        const minutesUntil = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60))
+        
+        if (daysUntil > 0) {
+          setTimeUntilClose(`エントリー開始まで${daysUntil}日${hoursUntil}時間`)
+        } else if (hoursUntil > 0) {
+          setTimeUntilClose(`エントリー開始まで${hoursUntil}時間${minutesUntil}分`)
+        } else {
+          setTimeUntilClose(`エントリー開始まで${minutesUntil}分`)
+        }
+      } else {
+        // エントリー終了後
+        setShowForm(false)
+        setEntryPhase('closed')
+        setIsEntryOpen(false)
+        setTimeUntilClose('エントリー受付終了')
+      }
+    }
 
-    fetchLiveDates()
-    fetchEntrySettings()
-    
-    return () => clearInterval(timer)
-  }, [entrySettings]) // eslint-disable-line react-hooks/exhaustive-deps
+    checkEntryStatus()
+  }, [currentTime, entrySettings, settingsLoaded])
 
   const fetchLiveDates = async () => {
     try {
@@ -139,36 +175,65 @@ export default function EntryPage() {
   const fetchEntrySettings = async () => {
     try {
       const response = await fetch('/api/entry-status')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
       const data = await response.json()
       console.log('Fetched entry settings:', data.settings)
-      setEntrySettings(data.settings)
-      setSettingsLoaded(true)
+      
+      // 設定が実際に変更された場合のみ状態を更新
+      setEntrySettings((prevSettings: any) => {
+        const settingsChanged = JSON.stringify(prevSettings) !== JSON.stringify(data.settings)
+        if (settingsChanged) {
+          setLastSettingsUpdate(Date.now())
+        }
+        return data.settings
+      })
+      
+      if (!settingsLoaded) {
+        setSettingsLoaded(true)
+      }
     } catch (error) {
       console.error('Failed to fetch entry settings:', error)
-      setSettingsLoaded(true)
+      if (!settingsLoaded) {
+        setSettingsLoaded(true)
+      }
     }
   }
 
-  // 設定を定期的に取得
-  useEffect(() => {
-    // 初回取得
-    fetchEntrySettings()
-    
-    // 30秒ごとに設定を再取得
-    const settingsTimer = setInterval(() => {
-      fetchEntrySettings()
-    }, 30000)
-    
-    return () => clearInterval(settingsTimer)
-  }, [])
 
-  // まだマウントされていない場合または設定読み込み中はローディング表示
-  if (!mounted || !currentTime || !settingsLoaded) {
+  // まだマウントされていない場合はローディング表示
+  if (!mounted || !currentTime) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 設定読み込み中の場合は待機画面を表示
+  if (!settingsLoaded) {
+    return (
+      <div className="min-h-screen gradient-bg relative overflow-hidden flex items-center justify-center">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float"></div>
+        <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float" style={{ animationDelay: '2s' }}></div>
+        
+        <div className="text-center px-4">
+          <div className="glass-card max-w-2xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
+              日の出寄席
+            </h1>
+            <div className="mb-8">
+              <div className="w-16 h-16 mx-auto mb-4 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-lg text-gray-600">エントリー設定を読み込み中...</p>
+            </div>
+            <p className="text-2xl font-bold text-gray-800 font-mono">
+              {currentTime?.toLocaleDateString('ja-JP')} {currentTime?.toLocaleTimeString('ja-JP')}
+            </p>
+          </div>
         </div>
       </div>
     )
