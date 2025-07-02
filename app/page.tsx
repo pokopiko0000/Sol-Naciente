@@ -8,6 +8,21 @@ type DateEntry = {
   performance_type: '漫才（漫談）' | 'コント' | '未定'
 }
 
+// 時間表示コンポーネント（分離して再レンダリングを防ぐ）
+const ClockDisplay = memo(function ClockDisplay({ currentTime, timeUntilClose }: { currentTime: Date | null, timeUntilClose: string }) {
+  return (
+    <div className="glass-card mb-8 text-center">
+      <p className="text-3xl font-bold text-gray-800 mb-2 font-mono">
+        {currentTime?.toLocaleTimeString('ja-JP') || '--:--:--'}
+      </p>
+      <div className="space-y-2">
+        <p className="text-lg font-semibold text-gray-900">エントリー受付中</p>
+        <p className="text-sm text-gray-600">{timeUntilClose}</p>
+      </div>
+    </div>
+  )
+})
+
 // パフォーマンス最適化のための分離コンポーネント
 const DateSelectionSection = memo(function DateSelectionSection({ 
   availableDates, 
@@ -488,15 +503,7 @@ export default function EntryPage() {
         </div>
 
         {/* Clock and Status */}
-        <div className="glass-card mb-8 text-center">
-          <p className="text-3xl font-bold text-gray-800 mb-2 font-mono">
-            {currentTime?.toLocaleTimeString('ja-JP') || '--:--:--'}
-          </p>
-          <div className="space-y-2">
-            <p className="text-lg font-semibold text-gray-900">エントリー受付中</p>
-            <p className="text-sm text-gray-600">{timeUntilClose}</p>
-          </div>
-        </div>
+        <ClockDisplay currentTime={currentTime} timeUntilClose={timeUntilClose} />
 
         {/* Main form */}
         <form onSubmit={handleSubmit} className="card form-section">
@@ -507,7 +514,7 @@ export default function EntryPage() {
             
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">インディーズ名 *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">コンビ名（ピン名） *</label>
                 <input
                   type="text"
                   name="indies_name"
@@ -518,7 +525,7 @@ export default function EntryPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">エントリー名 *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">インディーズ名 *</label>
                 <input
                   type="text"
                   name="entry_name"

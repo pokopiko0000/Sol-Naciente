@@ -138,4 +138,10 @@
   .loading-dots span:nth-child(3) {
     animation-delay: 0.2s;
   }
+
+  /* タッチデバイスのパフォーマンス改善 */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 }

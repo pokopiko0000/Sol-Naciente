@@ -363,43 +363,47 @@ export default function AdminPage() {
         </div>
         
         {/* タブナビゲーション */}
-        <div className="flex mb-6 glass-card p-1">
+        <div className="flex flex-wrap md:flex-nowrap mb-6 glass-card p-1 gap-1">
           <button
             onClick={() => setActiveTab('entries')}
-            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
+            onTouchEnd={() => setActiveTab('entries')}
+            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
               activeTab === 'entries' 
                 ? 'bg-gray-900 text-white shadow-md' 
-                : 'text-gray-700 hover:bg-gray-100'
+                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
           >
             エントリー一覧
           </button>
           <button
             onClick={() => setActiveTab('schedule')}
-            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
+            onTouchEnd={() => setActiveTab('schedule')}
+            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
               activeTab === 'schedule' 
                 ? 'bg-gray-900 text-white shadow-md' 
-                : 'text-gray-700 hover:bg-gray-100'
+                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
           >
             香盤表
           </button>
           <button
             onClick={() => setActiveTab('lives')}
-            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
+            onTouchEnd={() => setActiveTab('lives')}
+            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
               activeTab === 'lives' 
                 ? 'bg-gray-900 text-white shadow-md' 
-                : 'text-gray-700 hover:bg-gray-100'
+                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
           >
             ライブ管理
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-3 px-4 text-center rounded-lg transition-colors font-medium ${
+            onTouchEnd={() => setActiveTab('settings')}
+            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
               activeTab === 'settings' 
                 ? 'bg-gray-900 text-white shadow-md' 
-                : 'text-gray-700 hover:bg-gray-100'
+                : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
           >
             エントリー設定
