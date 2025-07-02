@@ -1,12 +1,76 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { useRouter } from 'next/navigation'
 
 type DateEntry = {
   date: string
   performance_type: '漫才（漫談）' | 'コント' | '未定'
 }
+
+// パフォーマンス最適化のための分離コンポーネント
+const DateSelectionSection = memo(({ 
+  availableDates, 
+  formData, 
+  onDateToggle, 
+  onPerformanceTypeChange 
+}: {
+  availableDates: string[]
+  formData: EntryForm
+  onDateToggle: (date: string) => void
+  onPerformanceTypeChange: (date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => void
+}) => {
+  if (availableDates.length === 0) {
+    return (
+      <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+        <p className="text-gray-500 text-lg mb-2">エントリー可能な日程がありません</p>
+        <p className="text-gray-400 text-sm">管理者が対象月のライブ日程を設定するまでお待ちください</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {availableDates.map(date => {
+        const selectedEntry = formData.entries.find(e => e.date === date)
+        const isSelected = !!selectedEntry
+        
+        return (
+          <div key={date} className={`border-2 rounded-lg p-4 transition-all ${
+            isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+          }`}>
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => onDateToggle(date)}
+                className={`font-medium text-left ${
+                  isSelected ? 'text-blue-700' : 'text-gray-700'
+                }`}
+              >
+                {date}
+              </button>
+              
+              {isSelected && selectedEntry && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">演目:</span>
+                  <select
+                    value={selectedEntry.performance_type}
+                    onChange={(e) => onPerformanceTypeChange(date, e.target.value as '漫才（漫談）' | 'コント' | '未定')}
+                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="漫才（漫談）">漫才（漫談）</option>
+                    <option value="コント">コント</option>
+                    <option value="未定">未定</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+})
 
 type EntryForm = {
   indies_name: string
@@ -288,7 +352,7 @@ export default function EntryPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleDateToggle = (date: string) => {
+  const handleDateToggle = useCallback((date: string) => {
     setFormData(prev => {
       const existingEntry = prev.entries.find(e => e.date === date)
       
@@ -306,9 +370,9 @@ export default function EntryPage() {
         }
       }
     })
-  }
+  }, [])
 
-  const handlePerformanceTypeChange = (date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => {
+  const handlePerformanceTypeChange = useCallback((date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => {
     setFormData(prev => ({
       ...prev,
       entries: prev.entries.map(entry => 
@@ -317,7 +381,7 @@ export default function EntryPage() {
           : entry
       )
     }))
-  }
+  }, [])
 
   // エントリー締切後の表示
   if (entryPhase === 'closed') {
@@ -473,52 +537,12 @@ export default function EntryPage() {
             <h3 className="text-lg font-bold text-gray-800 mb-4">エントリー日程・演目 *</h3>
             <p className="text-sm text-gray-600 mb-4">日付をクリックしてエントリー、演目を選択してください</p>
             
-            {availableDates.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                <p className="text-gray-500 text-lg mb-2">エントリー可能な日程がありません</p>
-                <p className="text-gray-400 text-sm">管理者が対象月のライブ日程を設定するまでお待ちください</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {availableDates.map(date => {
-                const selectedEntry = formData.entries.find(e => e.date === date)
-                const isSelected = !!selectedEntry
-                
-                return (
-                  <div key={date} className={`border-2 rounded-lg p-4 transition-all ${
-                    isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => handleDateToggle(date)}
-                        className={`font-medium text-left ${
-                          isSelected ? 'text-blue-700' : 'text-gray-700'
-                        }`}
-                      >
-                        {date}
-                      </button>
-                      
-                      {isSelected && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600">演目:</span>
-                          <select
-                            value={selectedEntry.performance_type}
-                            onChange={(e) => handlePerformanceTypeChange(date, e.target.value as '漫才（漫談）' | 'コント' | '未定')}
-                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="漫才（漫談）">漫才（漫談）</option>
-                            <option value="コント">コント</option>
-                            <option value="未定">未定</option>
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-              </div>
-            )}
+            <DateSelectionSection 
+              availableDates={availableDates}
+              formData={formData}
+              onDateToggle={handleDateToggle}
+              onPerformanceTypeChange={handlePerformanceTypeChange}
+            />
             
             {formData.entries.length > 0 && (
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
