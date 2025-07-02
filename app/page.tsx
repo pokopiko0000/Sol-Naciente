@@ -9,7 +9,7 @@ type DateEntry = {
 }
 
 // パフォーマンス最適化のための分離コンポーネント
-const DateSelectionSection = memo(({ 
+const DateSelectionSection = memo(function DateSelectionSection({ 
   availableDates, 
   formData, 
   onDateToggle, 
@@ -125,7 +125,7 @@ export default function EntryPage() {
     }, 30000)
     
     return () => clearInterval(settingsTimer)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // エントリー日程取得用のuseEffect
   useEffect(() => {
@@ -265,42 +265,40 @@ export default function EntryPage() {
     }
   }
 
+  const handleDateToggle = useCallback((date: string) => {
+    setFormData(prev => {
+      const existingEntry = prev.entries.find(e => e.date === date)
+      
+      if (existingEntry) {
+        // 既存のエントリーを削除
+        return {
+          ...prev,
+          entries: prev.entries.filter(e => e.date !== date)
+        }
+      } else {
+        // 新しいエントリーを追加（デフォルトは漫才）
+        return {
+          ...prev,
+          entries: [...prev.entries, { date, performance_type: '漫才（漫談）' }]
+        }
+      }
+    })
+  }, [])
 
-  // まだマウントされていない場合はローディング表示
-  if (!mounted || !currentTime) {
-    return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600">読み込み中...</p>
-        </div>
-      </div>
-    )
-  }
+  const handlePerformanceTypeChange = useCallback((date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => {
+    setFormData(prev => ({
+      ...prev,
+      entries: prev.entries.map(entry => 
+        entry.date === date 
+          ? { ...entry, performance_type: performanceType }
+          : entry
+      )
+    }))
+  }, [])
 
-  // 設定読み込み中の場合は待機画面を表示
-  if (!settingsLoaded) {
-    return (
-      <div className="min-h-screen gradient-bg relative overflow-hidden flex items-center justify-center">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float" style={{ animationDelay: '2s' }}></div>
-        
-        <div className="text-center px-4">
-          <div className="glass-card max-w-2xl mx-auto">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
-              日の出寄席
-            </h1>
-            <div className="mb-8">
-              <div className="w-16 h-16 mx-auto mb-4 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-lg text-gray-600">エントリー設定を読み込み中...</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-800 font-mono">
-              {currentTime?.toLocaleDateString('ja-JP')} {currentTime?.toLocaleTimeString('ja-JP')}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -347,41 +345,44 @@ export default function EntryPage() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+
+  // まだマウントされていない場合はローディング表示
+  if (!mounted || !currentTime) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    )
   }
 
-  const handleDateToggle = useCallback((date: string) => {
-    setFormData(prev => {
-      const existingEntry = prev.entries.find(e => e.date === date)
-      
-      if (existingEntry) {
-        // 既存のエントリーを削除
-        return {
-          ...prev,
-          entries: prev.entries.filter(e => e.date !== date)
-        }
-      } else {
-        // 新しいエントリーを追加（デフォルトは漫才）
-        return {
-          ...prev,
-          entries: [...prev.entries, { date, performance_type: '漫才（漫談）' }]
-        }
-      }
-    })
-  }, [])
+  // 設定読み込み中の場合は待機画面を表示
+  if (!settingsLoaded) {
+    return (
+      <div className="min-h-screen gradient-bg relative overflow-hidden flex items-center justify-center">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float"></div>
+        <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-float" style={{ animationDelay: '2s' }}></div>
+        
+        <div className="text-center px-4">
+          <div className="glass-card max-w-2xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
+              日の出寄席
+            </h1>
+            <div className="mb-8">
+              <div className="w-16 h-16 mx-auto mb-4 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-lg text-gray-600">エントリー設定を読み込み中...</p>
+            </div>
+            <p className="text-2xl font-bold text-gray-800 font-mono">
+              {currentTime?.toLocaleDateString('ja-JP')} {currentTime?.toLocaleTimeString('ja-JP')}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-  const handlePerformanceTypeChange = useCallback((date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => {
-    setFormData(prev => ({
-      ...prev,
-      entries: prev.entries.map(entry => 
-        entry.date === date 
-          ? { ...entry, performance_type: performanceType }
-          : entry
-      )
-    }))
-  }, [])
 
   // エントリー締切後の表示
   if (entryPhase === 'closed') {
