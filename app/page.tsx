@@ -19,7 +19,7 @@ const DateSelectionSection = memo(function DateSelectionSection({
   formData: EntryForm
   onDateToggle: (date: string) => void
   onPerformanceTypeChange: (date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => void
-}) => {
+}) {
   if (availableDates.length === 0) {
     return (
       <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">

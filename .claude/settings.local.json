@@ -22,7 +22,8 @@
       "Bash(pkill:*)",
       "Bash(true)",
       "Bash(npm update:*)",
-      "Bash(npm run type-check:*)"
+      "Bash(npm run type-check:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }
