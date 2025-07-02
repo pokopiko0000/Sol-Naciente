@@ -44,6 +44,12 @@ export default function AdminPage() {
   const [targetMonth, setTargetMonth] = useState('')
   const [settings, setSettings] = useState<any>(null)
 
+  // タブ切り替え関数（モバイル対応）
+  const handleTabChange = (tab: 'entries' | 'schedule' | 'lives' | 'settings') => {
+    console.log('Tab change requested:', tab);
+    setActiveTab(tab);
+  }
+
   const fetchEntries = async () => {
     try {
       const response = await fetch('/api/admin/entries', {
@@ -363,51 +369,63 @@ export default function AdminPage() {
         </div>
         
         {/* タブナビゲーション */}
-        <div className="flex flex-wrap md:flex-nowrap mb-6 glass-card p-1 gap-1">
-          <button
-            onClick={() => setActiveTab('entries')}
-            onTouchEnd={() => setActiveTab('entries')}
-            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
+        <div className="flex flex-wrap md:flex-nowrap mb-6 glass-card p-1 gap-1" style={{ position: 'relative', zIndex: 10 }}>
+          <div
+            onClick={() => handleTabChange('entries')}
+            onTouchStart={() => handleTabChange('entries')}
+            className={`flex-1 py-4 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base select-none cursor-pointer ${
               activeTab === 'entries' 
                 ? 'bg-gray-900 text-white shadow-md' 
                 : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
+            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', userSelect: 'none' }}
+            role="button"
+            tabIndex={0}
           >
             エントリー一覧
-          </button>
-          <button
-            onClick={() => setActiveTab('schedule')}
-            onTouchEnd={() => setActiveTab('schedule')}
-            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
+          </div>
+          <div
+            onClick={() => handleTabChange('schedule')}
+            onTouchStart={() => handleTabChange('schedule')}
+            className={`flex-1 py-4 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base select-none cursor-pointer ${
               activeTab === 'schedule' 
                 ? 'bg-gray-900 text-white shadow-md' 
                 : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
+            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', userSelect: 'none' }}
+            role="button"
+            tabIndex={0}
           >
             香盤表
-          </button>
-          <button
-            onClick={() => setActiveTab('lives')}
-            onTouchEnd={() => setActiveTab('lives')}
-            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
+          </div>
+          <div
+            onClick={() => handleTabChange('lives')}
+            onTouchStart={() => handleTabChange('lives')}
+            className={`flex-1 py-4 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base select-none cursor-pointer ${
               activeTab === 'lives' 
                 ? 'bg-gray-900 text-white shadow-md' 
                 : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
+            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', userSelect: 'none' }}
+            role="button"
+            tabIndex={0}
           >
             ライブ管理
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            onTouchEnd={() => setActiveTab('settings')}
-            className={`flex-1 py-3 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base touch-manipulation ${
+          </div>
+          <div
+            onClick={() => handleTabChange('settings')}
+            onTouchStart={() => handleTabChange('settings')}
+            className={`flex-1 py-4 px-3 md:px-4 text-center rounded-lg transition-colors font-medium text-sm md:text-base select-none cursor-pointer ${
               activeTab === 'settings' 
                 ? 'bg-gray-900 text-white shadow-md' 
                 : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
             }`}
+            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', userSelect: 'none' }}
+            role="button"
+            tabIndex={0}
           >
             エントリー設定
-          </button>
+          </div>
         </div>
 
         {/* アクションボタン */}
