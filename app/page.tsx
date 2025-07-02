@@ -325,7 +325,7 @@ export default function EntryPage() {
     }
 
     // 必須項目チェック
-    if (!formData.indies_name || !formData.entry_name || !formData.email) {
+    if (!formData.indies_name || !formData.entry_name) {
       alert('必須項目が入力されていません')
       return
     }
@@ -587,19 +587,6 @@ export default function EntryPage() {
             <h3 className="text-lg font-bold text-gray-800 mb-4">連絡先</h3>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">メールアドレス *</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                placeholder="example@email.com"
-                className="input-field"
-              />
-            </div>
-            
-            <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">LINE URL</label>
               <input
                 type="url"
