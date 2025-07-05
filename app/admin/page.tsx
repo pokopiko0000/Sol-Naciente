@@ -48,6 +48,8 @@ export default function AdminPage() {
   const [newLiveCapacity, setNewLiveCapacity] = useState('24')
   const [performanceTypes, setPerformanceTypes] = useState<any[]>([])
   const [newPerformanceType, setNewPerformanceType] = useState('')
+  const [selectedPerformanceTypes, setSelectedPerformanceTypes] = useState<string[]>([])
+  const [recruitmentText, setRecruitmentText] = useState('')
 
   // タブ切り替え関数（モバイル対応）
   const handleTabChange = (tab: 'entries' | 'schedule' | 'lives' | 'settings') => {
@@ -99,6 +101,7 @@ export default function AdminPage() {
         setIsEntryActive(data.settings.is_entry_active || false)
         setTargetYear(data.settings.target_year ? data.settings.target_year.toString() : '')
         setTargetMonth(data.settings.target_month ? data.settings.target_month.toString() : '')
+        setRecruitmentText(data.settings.recruitment_text || '')
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error)
@@ -177,7 +180,8 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           date: datetime,
-          capacity: parseInt(newLiveCapacity)
+          capacity: parseInt(newLiveCapacity),
+          allowed_performance_types: selectedPerformanceTypes
         })
       })
 
@@ -187,6 +191,7 @@ export default function AdminPage() {
         setNewLiveCapacity('24')
         setNewLiveHour('')
         setNewLiveMinute('00')
+        setSelectedPerformanceTypes([])
         fetchLives()
       } else {
         alert('ライブの追加に失敗しました')
@@ -220,6 +225,41 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Delete live error:', error)
+      alert('エラーが発生しました')
+    }
+  }
+
+  // 演目選択のハンドリング関数
+  const handlePerformanceTypeChange = (typeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPerformanceTypes(prev => [...prev, typeId])
+    } else {
+      setSelectedPerformanceTypes(prev => prev.filter(id => id !== typeId))
+    }
+  }
+
+  // 募集要項設定更新
+  const updateRecruitmentText = async () => {
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer owarai2025',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          recruitment_text: recruitmentText
+        })
+      })
+
+      if (response.ok) {
+        alert('募集要項が更新されました')
+        fetchSettings()
+      } else {
+        alert('更新に失敗しました')
+      }
+    } catch (error) {
+      console.error('Update settings error:', error)
       alert('エラーが発生しました')
     }
   }
@@ -387,6 +427,7 @@ export default function AdminPage() {
       alert('エラーが発生しました')
     }
   }
+
 
   const resetSystem = async (year?: number, month?: number) => {
     const message = year && month 
@@ -778,6 +819,28 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* 演目選択チェックボックス */}
+                <div className="mt-6">
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">対象演目選択</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {performanceTypes.map(type => (
+                      <label key={type.id} className="flex items-center space-x-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedPerformanceTypes.includes(type.id)}
+                          onChange={(e) => handlePerformanceTypeChange(type.id, e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">{type.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {performanceTypes.length === 0 && (
+                    <p className="text-gray-500 text-sm">演目が登録されていません。設定セクションで演目を追加してください。</p>
+                  )}
+                  <p className="text-sm text-gray-600 mt-2">※ 選択した演目のみエントリーフォームに表示されます</p>
+                </div>
               </div>
 
               {/* データリセット */}
@@ -958,7 +1021,29 @@ export default function AdminPage() {
                     onClick={updateEntrySettings}
                     className="btn-primary"
                   >
-                    設定を更新
+                    エントリー設定を更新
+                  </button>
+                </div>
+
+                {/* 募集要項テキスト編集エリア */}
+                <div className="p-6 bg-white/50 border border-gray-200 rounded-lg">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">募集要項設定</h3>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">募集要項テキスト</label>
+                    <textarea
+                      value={recruitmentText}
+                      onChange={(e) => setRecruitmentText(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      rows={8}
+                      placeholder="募集要項の内容を入力してください..."
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600 mb-4">※ この内容がエントリーフォームの募集要項として表示されます</p>
+                  <button
+                    onClick={updateRecruitmentText}
+                    className="btn-primary"
+                  >
+                    募集要項を更新
                   </button>
                 </div>
 
@@ -970,6 +1055,7 @@ export default function AdminPage() {
                       <p><strong>終了日時:</strong> {settings.entry_end_time ? new Date(settings.entry_end_time).toLocaleString('ja-JP') : '未設定'}</p>
                       <p><strong>募集対象:</strong> {settings.target_year && settings.target_month ? `${settings.target_year}年${settings.target_month}月` : '未設定'}</p>
                       <p><strong>受付状態:</strong> {settings.is_entry_active ? '受付中' : '受付停止'}</p>
+                      <p><strong>募集要項:</strong> {settings.recruitment_text ? '設定済み' : '未設定'}</p>
                     </div>
                   </div>
                 )}

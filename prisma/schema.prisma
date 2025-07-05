@@ -27,6 +27,7 @@ model Live {
   date      DateTime
   capacity  Int       @default(24) // 日の出寄席は24組固定
   is_confirmed Boolean @default(false) // 香盤表確定フラグ
+  allowed_performance_types String[] @default([]) // このライブで利用可能な演目ID配列
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   assignments Assignment[]
@@ -56,6 +57,7 @@ model Settings {
   is_entry_active   Boolean  @default(false) // エントリー受付中フラグ
   target_year       Int?     // 募集対象年
   target_month      Int?     // 募集対象月
+  recruitment_text  String?  // 募集要項テキスト（エントリーフォーム上部に表示）
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

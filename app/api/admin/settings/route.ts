@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
         entry_end_time: new Date(data.entry_end_time),
         is_entry_active: data.is_entry_active || false,
         target_year: data.target_year,
-        target_month: data.target_month
+        target_month: data.target_month,
+        recruitment_text: data.recruitment_text || null
       }
     })
 
@@ -76,6 +77,58 @@ export async function POST(request: NextRequest) {
     console.error('Settings POST error:', error)
     return NextResponse.json(
       { error: 'Failed to update settings' },
+      { status: 500 }
+    )
+  }
+}
+
+// 募集要項テキストのみ更新
+export async function PUT(request: NextRequest) {
+  try {
+    // 認証チェック
+    const auth = request.headers.get('Authorization')
+    if (!auth || auth !== 'Bearer owarai2025') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const data = await request.json()
+    
+    // 既存の設定を取得
+    const existingSettings = await prisma.settings.findFirst({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    if (!existingSettings) {
+      return NextResponse.json(
+        { error: '設定が見つかりません' },
+        { status: 404 }
+      )
+    }
+
+    // 既存の設定を削除して新しい設定を作成（recruitment_textのみ更新）
+    await prisma.settings.deleteMany({})
+    
+    const settings = await prisma.settings.create({
+      data: {
+        entry_start_time: existingSettings.entry_start_time,
+        entry_end_time: existingSettings.entry_end_time,
+        is_entry_active: existingSettings.is_entry_active,
+        target_year: existingSettings.target_year,
+        target_month: existingSettings.target_month,
+        recruitment_text: data.recruitment_text || null
+      }
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      settings 
+    })
+  } catch (error) {
+    console.error('Settings PUT error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update recruitment text' },
       { status: 500 }
     )
   }

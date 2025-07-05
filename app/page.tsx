@@ -25,19 +25,19 @@ const ClockDisplay = memo(function ClockDisplay({ currentTime, timeUntilClose }:
 
 // パフォーマンス最適化のための分離コンポーネント
 const DateSelectionSection = memo(function DateSelectionSection({ 
-  availableDates, 
+  availableLives, 
   formData, 
   performanceTypes,
   onDateToggle, 
   onPerformanceTypeChange 
 }: {
-  availableDates: string[]
+  availableLives: any[]
   formData: EntryForm
   performanceTypes: any[]
   onDateToggle: (date: string) => void
   onPerformanceTypeChange: (date: string, performanceType: string) => void
 }) {
-  if (availableDates.length === 0) {
+  if (availableLives.length === 0) {
     return (
       <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
         <p className="text-gray-500 text-lg mb-2">エントリー可能な日程がありません</p>
@@ -48,23 +48,29 @@ const DateSelectionSection = memo(function DateSelectionSection({
 
   return (
     <div className="space-y-3">
-      {availableDates.map(date => {
-        const selectedEntry = formData.entries.find(e => e.date === date)
+      {availableLives.map(live => {
+        const dateString = live.dateString
+        const selectedEntry = formData.entries.find(e => e.date === dateString)
         const isSelected = !!selectedEntry
         
+        // このライブで利用可能な演目を取得（空の場合は全ての演目を利用可能）
+        const availablePerformanceTypes = live.allowedPerformanceTypes.length > 0 
+          ? performanceTypes.filter(type => live.allowedPerformanceTypes.includes(type.id))
+          : performanceTypes
+        
         return (
-          <div key={date} className={`border-2 rounded-lg p-4 transition-all ${
+          <div key={live.id} className={`border-2 rounded-lg p-4 transition-all ${
             isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
           }`}>
             <div className="flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => onDateToggle(date)}
+                onClick={() => onDateToggle(dateString)}
                 className={`font-medium text-left ${
                   isSelected ? 'text-blue-700' : 'text-gray-700'
                 }`}
               >
-                {date}
+                {dateString}
               </button>
               
               {isSelected && selectedEntry && (
@@ -72,16 +78,21 @@ const DateSelectionSection = memo(function DateSelectionSection({
                   <span className="text-sm text-gray-600">演目:</span>
                   <select
                     value={selectedEntry.performance_type}
-                    onChange={(e) => onPerformanceTypeChange(date, e.target.value)}
+                    onChange={(e) => onPerformanceTypeChange(dateString, e.target.value)}
                     className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {performanceTypes.map(type => (
+                    {availablePerformanceTypes.map(type => (
                       <option key={type.id} value={type.name}>{type.name}</option>
                     ))}
                   </select>
                 </div>
               )}
             </div>
+            {live.allowedPerformanceTypes.length > 0 && (
+              <div className="mt-2 text-xs text-gray-500">
+                対象演目: {availablePerformanceTypes.map(type => type.name).join('、')}
+              </div>
+            )}
           </div>
         )
       })}
@@ -111,7 +122,7 @@ export default function EntryPage() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEntryOpen, setIsEntryOpen] = useState(false)
-  const [availableDates, setAvailableDates] = useState<string[]>([])
+  const [availableLives, setAvailableLives] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [timeUntilClose, setTimeUntilClose] = useState('')
   const [mounted, setMounted] = useState(false)
@@ -121,6 +132,7 @@ export default function EntryPage() {
   const [lastSettingsUpdate, setLastSettingsUpdate] = useState<number>(0)
   const [performanceTypes, setPerformanceTypes] = useState<any[]>([])
   const [performanceTypesLoaded, setPerformanceTypesLoaded] = useState(false)
+  const [recruitmentText, setRecruitmentText] = useState('')
 
   // 時間表示用のuseEffect（設定に依存しない）
   useEffect(() => {
@@ -253,10 +265,10 @@ export default function EntryPage() {
     try {
       const response = await fetch('/api/lives')
       const data = await response.json()
-      setAvailableDates(data.dates || [])
+      setAvailableLives(data.lives || [])
     } catch (error) {
       console.error('Failed to fetch live dates:', error)
-      setAvailableDates([])
+      setAvailableLives([])
     }
   }
 
@@ -318,15 +330,23 @@ export default function EntryPage() {
           entries: prev.entries.filter(e => e.date !== date)
         }
       } else {
-        // 新しいエントリーを追加（デフォルトは最初の演目）
-        const defaultPerformanceType = performanceTypes.length > 0 ? performanceTypes[0].name : '漫才（漫談）'
+        // そのライブで利用可能な演目を取得
+        const live = availableLives.find(l => l.dateString === date)
+        const availablePerformanceTypes = live && live.allowedPerformanceTypes.length > 0 
+          ? performanceTypes.filter(type => live.allowedPerformanceTypes.includes(type.id))
+          : performanceTypes
+        
+        // 新しいエントリーを追加（デフォルトは最初の利用可能演目）
+        const defaultPerformanceType = availablePerformanceTypes.length > 0 
+          ? availablePerformanceTypes[0].name 
+          : '漫才（漫談）'
         return {
           ...prev,
           entries: [...prev.entries, { date, performance_type: defaultPerformanceType }]
         }
       }
     })
-  }, [performanceTypes])
+  }, [performanceTypes, availableLives])
 
   const handlePerformanceTypeChange = useCallback((date: string, performanceType: string) => {
     setFormData(prev => ({
@@ -533,6 +553,16 @@ export default function EntryPage() {
         {/* Clock and Status */}
         <ClockDisplay currentTime={currentTime} timeUntilClose={timeUntilClose} />
 
+        {/* 募集要項表示 */}
+        {recruitmentText && (
+          <div className="glass-card mb-8">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">募集要項</h2>
+            <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+              {recruitmentText}
+            </div>
+          </div>
+        )}
+
         {/* Main form */}
         <form onSubmit={handleSubmit} className="card form-section">
           
@@ -574,7 +604,7 @@ export default function EntryPage() {
             <p className="text-sm text-gray-600 mb-4">日付をクリックしてエントリー、演目を選択してください</p>
             
             <DateSelectionSection 
-              availableDates={availableDates}
+              availableLives={availableLives}
               formData={formData}
               performanceTypes={performanceTypes}
               onDateToggle={handleDateToggle}
