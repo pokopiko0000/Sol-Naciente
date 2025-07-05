@@ -48,9 +48,9 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ performanceType })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Performance type creation error:', error)
-    if (error.code === 'P2002') {
+    if (error?.code === 'P2002') {
       return NextResponse.json(
         { error: 'この演目名は既に存在します' },
         { status: 400 }
