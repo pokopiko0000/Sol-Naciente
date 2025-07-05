@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 type DateEntry = {
   date: string
-  performance_type: '漫才（漫談）' | 'コント' | '未定'
+  performance_type: string
 }
 
 // 時間表示コンポーネント（分離して再レンダリングを防ぐ）
@@ -27,13 +27,15 @@ const ClockDisplay = memo(function ClockDisplay({ currentTime, timeUntilClose }:
 const DateSelectionSection = memo(function DateSelectionSection({ 
   availableDates, 
   formData, 
+  performanceTypes,
   onDateToggle, 
   onPerformanceTypeChange 
 }: {
   availableDates: string[]
   formData: EntryForm
+  performanceTypes: any[]
   onDateToggle: (date: string) => void
-  onPerformanceTypeChange: (date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => void
+  onPerformanceTypeChange: (date: string, performanceType: string) => void
 }) {
   if (availableDates.length === 0) {
     return (
@@ -70,12 +72,12 @@ const DateSelectionSection = memo(function DateSelectionSection({
                   <span className="text-sm text-gray-600">演目:</span>
                   <select
                     value={selectedEntry.performance_type}
-                    onChange={(e) => onPerformanceTypeChange(date, e.target.value as '漫才（漫談）' | 'コント' | '未定')}
+                    onChange={(e) => onPerformanceTypeChange(date, e.target.value)}
                     className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="漫才（漫談）">漫才（漫談）</option>
-                    <option value="コント">コント</option>
-                    <option value="未定">未定</option>
+                    {performanceTypes.map(type => (
+                      <option key={type.id} value={type.name}>{type.name}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -117,6 +119,8 @@ export default function EntryPage() {
   const [entrySettings, setEntrySettings] = useState<any>(null)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [lastSettingsUpdate, setLastSettingsUpdate] = useState<number>(0)
+  const [performanceTypes, setPerformanceTypes] = useState<any[]>([])
+  const [performanceTypesLoaded, setPerformanceTypesLoaded] = useState(false)
 
   // 時間表示用のuseEffect（設定に依存しない）
   useEffect(() => {
@@ -146,6 +150,11 @@ export default function EntryPage() {
   useEffect(() => {
     fetchLiveDates()
   }, [lastSettingsUpdate])
+
+  // 演目取得用のuseEffect
+  useEffect(() => {
+    fetchPerformanceTypes()
+  }, [])
 
   // 時間判定用のuseEffect
   useEffect(() => {
@@ -280,6 +289,24 @@ export default function EntryPage() {
     }
   }
 
+  const fetchPerformanceTypes = async () => {
+    try {
+      const response = await fetch('/api/performance-types')
+      const data = await response.json()
+      setPerformanceTypes(data.performanceTypes || [])
+      setPerformanceTypesLoaded(true)
+    } catch (error) {
+      console.error('Failed to fetch performance types:', error)
+      // フォールバック：デフォルト演目
+      setPerformanceTypes([
+        { id: 'default-1', name: '漫才（漫談）', order: 1 },
+        { id: 'default-2', name: 'コント', order: 2 },
+        { id: 'default-3', name: '未定', order: 3 }
+      ])
+      setPerformanceTypesLoaded(true)
+    }
+  }
+
   const handleDateToggle = useCallback((date: string) => {
     setFormData(prev => {
       const existingEntry = prev.entries.find(e => e.date === date)
@@ -291,16 +318,17 @@ export default function EntryPage() {
           entries: prev.entries.filter(e => e.date !== date)
         }
       } else {
-        // 新しいエントリーを追加（デフォルトは漫才）
+        // 新しいエントリーを追加（デフォルトは最初の演目）
+        const defaultPerformanceType = performanceTypes.length > 0 ? performanceTypes[0].name : '漫才（漫談）'
         return {
           ...prev,
-          entries: [...prev.entries, { date, performance_type: '漫才（漫談）' }]
+          entries: [...prev.entries, { date, performance_type: defaultPerformanceType }]
         }
       }
     })
-  }, [])
+  }, [performanceTypes])
 
-  const handlePerformanceTypeChange = useCallback((date: string, performanceType: '漫才（漫談）' | 'コント' | '未定') => {
+  const handlePerformanceTypeChange = useCallback((date: string, performanceType: string) => {
     setFormData(prev => ({
       ...prev,
       entries: prev.entries.map(entry => 
@@ -548,6 +576,7 @@ export default function EntryPage() {
             <DateSelectionSection 
               availableDates={availableDates}
               formData={formData}
+              performanceTypes={performanceTypes}
               onDateToggle={handleDateToggle}
               onPerformanceTypeChange={handlePerformanceTypeChange}
             />

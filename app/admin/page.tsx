@@ -46,6 +46,8 @@ export default function AdminPage() {
   const [resetYear, setResetYear] = useState('')
   const [resetMonth, setResetMonth] = useState('')
   const [newLiveCapacity, setNewLiveCapacity] = useState('24')
+  const [performanceTypes, setPerformanceTypes] = useState<any[]>([])
+  const [newPerformanceType, setNewPerformanceType] = useState('')
 
   // タブ切り替え関数（モバイル対応）
   const handleTabChange = (tab: 'entries' | 'schedule' | 'lives' | 'settings') => {
@@ -112,6 +114,7 @@ export default function AdminPage() {
       fetchEntries()
       fetchLives()
       fetchSettings()
+      fetchPerformanceTypes()
     }
   }, [])
 
@@ -123,6 +126,7 @@ export default function AdminPage() {
       fetchEntries()
       fetchLives()
       fetchSettings()
+      fetchPerformanceTypes()
     } else {
       alert('パスワードが間違っています')
     }
@@ -189,6 +193,105 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Create live error:', error)
+      alert('エラーが発生しました')
+    }
+  }
+
+  const deleteLive = async (liveId: string) => {
+    if (!confirm('このライブを削除しますか？')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/lives/delete?id=${liveId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer owarai2025'
+        }
+      })
+
+      const data = await response.json()
+      
+      if (response.ok) {
+        alert(data.message)
+        fetchLives()
+      } else {
+        alert(data.error || 'ライブの削除に失敗しました')
+      }
+    } catch (error) {
+      console.error('Delete live error:', error)
+      alert('エラーが発生しました')
+    }
+  }
+
+  const fetchPerformanceTypes = async () => {
+    try {
+      const response = await fetch('/api/admin/performance-types', {
+        headers: {
+          'Authorization': 'Bearer owarai2025'
+        }
+      })
+      const data = await response.json()
+      setPerformanceTypes(data.performanceTypes || [])
+    } catch (error) {
+      console.error('Failed to fetch performance types:', error)
+    }
+  }
+
+  const createPerformanceType = async () => {
+    if (!newPerformanceType.trim()) {
+      alert('演目名を入力してください')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/performance-types', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer owarai2025',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: newPerformanceType.trim() })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert('演目が追加されました')
+        setNewPerformanceType('')
+        fetchPerformanceTypes()
+      } else {
+        alert(data.error || '演目の追加に失敗しました')
+      }
+    } catch (error) {
+      console.error('Create performance type error:', error)
+      alert('エラーが発生しました')
+    }
+  }
+
+  const deletePerformanceType = async (id: string) => {
+    if (!confirm('この演目を削除しますか？')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/performance-types?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer owarai2025'
+        }
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert(data.message)
+        fetchPerformanceTypes()
+      } else {
+        alert(data.error || '演目の削除に失敗しました')
+      }
+    } catch (error) {
+      console.error('Delete performance type error:', error)
       alert('エラーが発生しました')
     }
   }
@@ -756,6 +859,14 @@ export default function AdminPage() {
                             出演者: {live.assignments.length}組 / 定員: {live.capacity}組
                           </p>
                         </div>
+                        <div>
+                          <button
+                            onClick={() => deleteLive(live.id)}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-all duration-300"
+                          >
+                            削除
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -862,6 +973,50 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+
+                {/* 演目管理 */}
+                <div className="p-6 bg-white/50 border border-gray-200 rounded-lg">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">演目管理</h3>
+                  
+                  {/* 新しい演目追加 */}
+                  <div className="flex gap-4 mb-6">
+                    <input
+                      type="text"
+                      value={newPerformanceType}
+                      onChange={(e) => setNewPerformanceType(e.target.value)}
+                      placeholder="新しい演目名"
+                      className="input-field flex-1"
+                    />
+                    <button
+                      onClick={createPerformanceType}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-all duration-300"
+                    >
+                      追加
+                    </button>
+                  </div>
+
+                  {/* 既存演目一覧 */}
+                  <div className="space-y-2">
+                    {performanceTypes.map((type, index) => (
+                      <div key={type.id} className="flex items-center justify-between p-3 bg-white/50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-500 font-mono w-8">{index + 1}</span>
+                          <span className="font-medium">{type.name}</span>
+                        </div>
+                        <button
+                          onClick={() => deletePerformanceType(type.id)}
+                          className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700 transition-all duration-300"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {performanceTypes.length === 0 && (
+                    <p className="text-gray-500 text-center py-4">演目が登録されていません</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

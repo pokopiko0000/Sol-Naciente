@@ -60,6 +60,15 @@ model Settings {
   updatedAt         DateTime @updatedAt
 }
 
+model PerformanceType {
+  id        String   @id @default(cuid())
+  name      String   @unique // 演目名
+  order     Int      // 表示順序
+  isActive  Boolean  @default(true) // 利用可能フラグ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum AssignmentStatus {
   ASSIGNED
   WAITING
