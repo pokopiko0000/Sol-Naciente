@@ -100,23 +100,16 @@ export async function PUT(request: NextRequest) {
       }
     })
 
-    if (!existingSettings) {
-      return NextResponse.json(
-        { error: '設定が見つかりません' },
-        { status: 404 }
-      )
-    }
-
     // 既存の設定を削除して新しい設定を作成（recruitment_textのみ更新）
     await prisma.settings.deleteMany({})
     
     const settings = await prisma.settings.create({
       data: {
-        entry_start_time: existingSettings.entry_start_time,
-        entry_end_time: existingSettings.entry_end_time,
-        is_entry_active: existingSettings.is_entry_active,
-        target_year: existingSettings.target_year,
-        target_month: existingSettings.target_month,
+        entry_start_time: existingSettings?.entry_start_time || new Date(),
+        entry_end_time: existingSettings?.entry_end_time || new Date(),
+        is_entry_active: existingSettings?.is_entry_active || false,
+        target_year: existingSettings?.target_year || new Date().getFullYear(),
+        target_month: existingSettings?.target_month || new Date().getMonth() + 1,
         recruitment_text: data.recruitment_text || null
       }
     })

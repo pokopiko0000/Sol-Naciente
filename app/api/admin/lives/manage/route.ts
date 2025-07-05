@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const { date, capacity, allowed_performance_types } = await request.json()
     
     // 日付をJST（日本時間）でDateオブジェクトに変換
-    const liveDate = new Date(date + 'T00:00:00+09:00')
+    const liveDate = new Date(date)
     
     // 同じ日付のライブが既に存在するかチェック
     const existing = await prisma.live.findFirst({

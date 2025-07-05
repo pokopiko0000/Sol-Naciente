@@ -278,6 +278,29 @@ export default function AdminPage() {
     }
   }
 
+  const createDefaultPerformanceTypes = async () => {
+    const defaultTypes = ['漫才（漫談）', 'コント', '未定']
+    
+    try {
+      for (const typeName of defaultTypes) {
+        await fetch('/api/admin/performance-types', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer owarai2025',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: typeName })
+        })
+      }
+      
+      alert('デフォルト演目が作成されました')
+      fetchPerformanceTypes()
+    } catch (error) {
+      console.error('Create default performance types error:', error)
+      alert('デフォルト演目の作成に失敗しました')
+    }
+  }
+
   const createPerformanceType = async () => {
     if (!newPerformanceType.trim()) {
       alert('演目名を入力してください')
@@ -837,9 +860,65 @@ export default function AdminPage() {
                     ))}
                   </div>
                   {performanceTypes.length === 0 && (
-                    <p className="text-gray-500 text-sm">演目が登録されていません。設定セクションで演目を追加してください。</p>
+                    <p className="text-gray-500 text-sm">演目が登録されていません。下記の演目管理で演目を追加してください。</p>
                   )}
-                  <p className="text-sm text-gray-600 mt-2">※ 選択した演目のみエントリーフォームに表示されます</p>
+                  <p className="text-sm text-gray-600 mt-2">※ 選択した演目のみエントリーフォームに表示されます（未選択の場合は全ての演目が表示）</p>
+                </div>
+
+                {/* 演目管理 */}
+                <div className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-lg font-semibold mb-3 text-blue-800">演目管理</h4>
+                  
+                  {/* デフォルト演目作成ボタン */}
+                  {performanceTypes.length === 0 && (
+                    <div className="mb-4 p-4 bg-white border border-blue-300 rounded-lg">
+                      <p className="text-sm text-blue-700 mb-3">まずはデフォルト演目を作成しましょう</p>
+                      <button
+                        onClick={createDefaultPerformanceTypes}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-all duration-300"
+                      >
+                        デフォルト演目を作成（漫才・コント・未定）
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 新しい演目追加 */}
+                  <div className="flex gap-4 mb-4">
+                    <input
+                      type="text"
+                      value={newPerformanceType}
+                      onChange={(e) => setNewPerformanceType(e.target.value)}
+                      placeholder="新しい演目名"
+                      className="input-field flex-1"
+                    />
+                    <button
+                      onClick={createPerformanceType}
+                      className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-all duration-300"
+                    >
+                      演目を追加
+                    </button>
+                  </div>
+
+                  {/* 既存演目一覧 */}
+                  {performanceTypes.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-blue-700 mb-2">登録済み演目:</p>
+                      {performanceTypes.map((type, index) => (
+                        <div key={type.id} className="flex items-center justify-between p-3 bg-white border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-blue-500 font-mono w-8">{index + 1}</span>
+                            <span className="font-medium">{type.name}</span>
+                          </div>
+                          <button
+                            onClick={() => deletePerformanceType(type.id)}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700 transition-all duration-300"
+                          >
+                            削除
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1060,49 +1139,6 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* 演目管理 */}
-                <div className="p-6 bg-white/50 border border-gray-200 rounded-lg">
-                  <h3 className="text-xl font-bold mb-4 text-gray-800">演目管理</h3>
-                  
-                  {/* 新しい演目追加 */}
-                  <div className="flex gap-4 mb-6">
-                    <input
-                      type="text"
-                      value={newPerformanceType}
-                      onChange={(e) => setNewPerformanceType(e.target.value)}
-                      placeholder="新しい演目名"
-                      className="input-field flex-1"
-                    />
-                    <button
-                      onClick={createPerformanceType}
-                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-all duration-300"
-                    >
-                      追加
-                    </button>
-                  </div>
-
-                  {/* 既存演目一覧 */}
-                  <div className="space-y-2">
-                    {performanceTypes.map((type, index) => (
-                      <div key={type.id} className="flex items-center justify-between p-3 bg-white/50 border border-gray-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-gray-500 font-mono w-8">{index + 1}</span>
-                          <span className="font-medium">{type.name}</span>
-                        </div>
-                        <button
-                          onClick={() => deletePerformanceType(type.id)}
-                          className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700 transition-all duration-300"
-                        >
-                          削除
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {performanceTypes.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">演目が登録されていません</p>
-                  )}
-                </div>
               </div>
             </div>
           </div>
