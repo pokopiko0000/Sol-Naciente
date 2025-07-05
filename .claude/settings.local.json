@@ -23,7 +23,10 @@
       "Bash(true)",
       "Bash(npm update:*)",
       "Bash(npm run type-check:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(tree:*)"
     ],
     "deny": []
   }

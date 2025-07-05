@@ -17,10 +17,13 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.backup
+.env.bak
 
 # Database
 prisma/dev.db
 prisma/dev.db-journal
+*.sql
 
 # Debug
 npm-debug.log*
@@ -30,6 +33,7 @@ yarn-error.log*
 # Local development
 .vscode/
 .idea/
+.obsidian/
 
 # OS generated files
 .DS_Store

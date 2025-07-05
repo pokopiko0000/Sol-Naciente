@@ -43,6 +43,9 @@ export default function AdminPage() {
   const [targetYear, setTargetYear] = useState('')
   const [targetMonth, setTargetMonth] = useState('')
   const [settings, setSettings] = useState<any>(null)
+  const [resetYear, setResetYear] = useState('')
+  const [resetMonth, setResetMonth] = useState('')
+  const [newLiveCapacity, setNewLiveCapacity] = useState('24')
 
   // タブ切り替え関数（モバイル対応）
   const handleTabChange = (tab: 'entries' | 'schedule' | 'lives' | 'settings') => {
@@ -170,13 +173,14 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           date: datetime,
-          capacity: 24
+          capacity: parseInt(newLiveCapacity)
         })
       })
 
       if (response.ok) {
         alert('ライブが追加されました')
         setNewLiveDate('')
+        setNewLiveCapacity('24')
         setNewLiveHour('')
         setNewLiveMinute('00')
         fetchLives()
@@ -437,17 +441,6 @@ export default function AdminPage() {
           >
             {isAssigning ? '振り分け中...' : '自動振り分け実行'}
           </button>
-          <button
-            onClick={() => {
-              const currentDate = new Date()
-              const year = currentDate.getFullYear()
-              const month = currentDate.getMonth() + 1
-              resetSystem(year, month)
-            }}
-            className="bg-gray-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-700 transition-all duration-300"
-          >
-            今月のデータをリセット
-          </button>
         </div>
 
         {/* エントリー一覧 */}
@@ -618,7 +611,7 @@ export default function AdminPage() {
               {/* 新しいライブ追加 */}
               <div className="mb-8 p-6 bg-white/50 border border-gray-200 rounded-lg">
                 <h3 className="text-xl font-bold mb-4 text-gray-800">新しいライブを追加</h3>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">日付</label>
                     <input
@@ -652,6 +645,18 @@ export default function AdminPage() {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium mb-1">定員数</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={newLiveCapacity}
+                      onChange={(e) => setNewLiveCapacity(e.target.value)}
+                      className="input-field"
+                      placeholder="24"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium mb-1">終演予定</label>
                     <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-700">
                       {newLiveHour && newLiveMinute ? (() => {
@@ -670,6 +675,54 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* データリセット */}
+              <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-lg">
+                <h3 className="text-xl font-bold mb-4 text-red-800">データリセット</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">年</label>
+                    <select
+                      value={resetYear}
+                      onChange={(e) => setResetYear(e.target.value)}
+                      className="input-field"
+                    >
+                      <option value="">年を選択</option>
+                      {[2024, 2025, 2026].map(year => (
+                        <option key={year} value={year}>{year}年</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">月</label>
+                    <select
+                      value={resetMonth}
+                      onChange={(e) => setResetMonth(e.target.value)}
+                      className="input-field"
+                    >
+                      <option value="">月を選択</option>
+                      {[...Array(12)].map((_, i) => (
+                        <option key={i + 1} value={i + 1}>{i + 1}月</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <button
+                      onClick={() => {
+                        if (resetYear && resetMonth) {
+                          resetSystem(parseInt(resetYear), parseInt(resetMonth))
+                        } else {
+                          alert('年と月を選択してください')
+                        }
+                      }}
+                      className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-all duration-300"
+                    >
+                      選択した月のデータをリセット
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-red-600 mt-2">※ 選択した年月のエントリーとアサインメントがすべて削除されます</p>
               </div>
 
               {/* 既存ライブ一覧 */}
